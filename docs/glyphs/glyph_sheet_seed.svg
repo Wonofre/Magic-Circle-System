@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="980" viewBox="0 0 1200 980">
+  <rect width="100%" height="100%" fill="#f8f5ec"/>
+  <style>
+    .title{font:800 30px Arial,sans-serif;fill:#221b13}.sub{font:14px Arial,sans-serif;fill:#6b5d4f}.card{fill:#fffdf8;stroke:#c9bda9}.box{fill:#fbf7ef;stroke:#eadfcc}.glyph{fill:none;stroke:#251b14;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}.fam{font:700 10px Arial,sans-serif;fill:#8b5e24}.name{font:800 13px Arial,sans-serif;fill:#221b13}.id{font:9px monospace;fill:#80705f}
+  </style>
+  <text class="title" x="24" y="42">Folha Visual Seed — Magic Circle TCG</text>
+  <text class="sub" x="24" y="68">Templates SVG em viewBox 0..100. Usar como referência visual + base para matching vetorial e validação topológica.</text>
+
+  <defs>
+    <g id="FRAME_CIRCLE_CONTAINMENT"><path class="glyph" d="M84 50 L82.8 58.7 L79.4 66.7 L74 74 L66.7 79.4 L58.7 82.8 L50 84 L41.3 82.8 L33.3 79.4 L26 74 L20.6 66.7 L17.2 58.7 L16 50 L17.2 41.3 L20.6 33.3 L26 26 L33.3 20.6 L41.3 17.2 L50 16 L58.7 17.2 L66.7 20.6 L74 26 L79.4 33.3 L82.8 41.3 L84 50"/></g>
+    <g id="FRAME_DOUBLE_SEAL"><path class="glyph" d="M87 50 L85 62 L79 74 L68 82 L50 87 L32 82 L21 74 L15 62 L13 50 L15 38 L21 26 L32 18 L50 13 L68 18 L79 26 L85 38 L87 50"/><path class="glyph" d="M77 50 L75 59 L69 69 L59 75 L50 77 L41 75 L31 69 L25 59 L23 50 L25 41 L31 31 L41 25 L50 23 L59 25 L69 31 L75 41 L77 50"/></g>
+    <g id="SOURCE_DOT"><path class="glyph" d="M56 50 L55 53 L53 55 L50 56 L47 55 L45 53 L44 50 L45 47 L47 45 L50 44 L53 45 L55 47 L56 50"/></g>
+    <g id="CHANNEL_LINE"><path class="glyph" d="M18 50 L82 50"/></g>
+    <g id="CHANNEL_JAGGED"><path class="glyph" d="M15 60 L30 38 L45 60 L60 38 L75 60 L88 44"/></g>
+    <g id="ELEMENT_IGNIS"><path class="glyph" d="M50 18 L68 63 L50 82 L32 63 L50 18"/><path class="glyph" d="M50 30 L59 58 L50 68 L41 58 L50 30"/></g>
+    <g id="ELEMENT_AQUA"><path class="glyph" d="M50 14 L72 48 L63 78 L50 88 L37 78 L28 48 L50 14"/><path class="glyph" d="M34 55 L42 50 L50 55 L58 60 L66 55"/></g>
+    <g id="ELEMENT_VENTUS"><path class="glyph" d="M18 36 L34 29 L50 36 L66 43 L82 36"/><path class="glyph" d="M24 52 L38 46 L52 52 L66 58 L78 52"/><path class="glyph" d="M30 68 L43 64 L56 68 L70 72"/></g>
+    <g id="ELEMENT_TERRA"><path class="glyph" d="M50 18 L78 50 L50 82 L22 50 L50 18"/><path class="glyph" d="M30 70 L70 70"/></g>
+    <g id="ELEMENT_LUX"><path class="glyph" d="M60 50 L57 57 L50 60 L43 57 L40 50 L43 43 L50 40 L57 43 L60 50"/><path class="glyph" d="M50 18 L50 32 M50 68 L50 82 M18 50 L32 50 M68 50 L82 50 M28 28 L38 38 M72 28 L62 38 M28 72 L38 62 M72 72 L62 62"/></g>
+    <g id="ELEMENT_UMBRA"><path class="glyph" d="M54 20 L42 30 L36 50 L42 70 L54 80"/><path class="glyph" d="M66 24 L56 34 L52 50 L56 66 L66 76"/></g>
+    <g id="ACTION_EMIT"><path class="glyph" d="M20 50 L78 50"/><path class="glyph" d="M78 50 L64 40 L64 60 L78 50"/></g>
+    <g id="ACTION_CONTAIN"><path class="glyph" d="M26 70 L20 50 L26 30 L50 20 L74 30 L80 50 L74 70"/><path class="glyph" d="M35 28 L50 20 M65 28 L50 20"/></g>
+    <g id="ACTION_CUT"><path class="glyph" d="M25 78 L75 22 M35 22 L65 78"/></g>
+    <g id="FORM_PROJECTILE"><path class="glyph" d="M18 50 L82 50"/><path class="glyph" d="M82 50 L66 40 L66 60 L82 50"/><path class="glyph" d="M28 42 L18 50 M28 58 L18 50"/></g>
+    <g id="FORM_BARRIER"><path class="glyph" d="M16 72 L26 55 L50 42 L74 55 L84 72"/><path class="glyph" d="M16 72 L84 72"/></g>
+    <g id="TARGET_SINGLE"><path class="glyph" d="M55 50 L53 54 L50 55 L47 54 L45 50 L47 46 L50 45 L53 46 L55 50"/><path class="glyph" d="M74 50 L71 62 L62 71 L50 74 L38 71 L29 62 L26 50 L29 38 L38 29 L50 26 L62 29 L71 38 L74 50"/></g>
+    <g id="TARGET_AREA"><path class="glyph" d="M82 50 L78 66 L66 78 L50 82 L34 78 L22 66 L18 50 L22 34 L34 22 L50 18 L66 22 L78 34 L82 50"/><path class="glyph" d="M38 42 L41 42 L41 45 L38 45 L38 42 M60 35 L63 35 L63 38 L60 38 L60 35 M66 62 L69 62 L69 65 L66 65 L66 62 M42 68 L45 68 L45 71 L42 71 L42 68"/></g>
+  </defs>
+
+  <script type="application/ecmascript"><![CDATA[
+    // SVG intentionally contains reusable <defs> with template ids.
+    // Engine can use the JSON seed for numeric strokes and this SVG for human docs.
+  ]]></script>
+
+  <g transform="translate(24,100)">
+    <g transform="translate(0,0)"><rect class="card" width="210" height="150" rx="16"/><rect class="box" x="12" y="12" width="100" height="100" rx="12"/><use href="#FRAME_CIRCLE_CONTAINMENT" x="12" y="12" width="100" height="100"/><text class="fam" x="122" y="30">MOLDURA</text><text class="name" x="122" y="50">Círculo</text><text class="id" x="12" y="132">FRAME_CIRCLE_CONTAINMENT</text></g>
+    <g transform="translate(230,0)"><rect class="card" width="210" height="150" rx="16"/><rect class="box" x="12" y="12" width="100" height="100" rx="12"/><use href="#FRAME_DOUBLE_SEAL" x="12" y="12" width="100" height="100"/><text class="fam" x="122" y="30">MOLDURA</text><text class="name" x="122" y="50">Duplo Selo</text><text class="id" x="12" y="132">FRAME_DOUBLE_SEAL</text></g>
+    <g transform="translate(460,0)"><rect class="card" width="210" height="150" rx="16"/><rect class="box" x="12" y="12" width="100" height="100" rx="12"/><use href="#SOURCE_DOT" x="12" y="12" width="100" height="100"/><text class="fam" x="122" y="30">FONTE</text><text class="name" x="122" y="50">Fonte</text><text class="id" x="12" y="132">SOURCE_DOT</text></g>
+    <g transform="translate(690,0)"><rect class="card" width="210" height="150" rx="16"/><rect class="box" x="12" y="12" width="100" height="100" rx="12"/><use href="#CHANNEL_LINE" x="12" y="12" width="100" height="100"/><text class="fam" x="122" y="30">CANAL</text><text class="name" x="122" y="50">Linha</text><text class="id" x="12" y="132">CHANNEL_LINE</text></g>
+    <g transform="translate(920,0)"><rect class="card" width="210" height="150" rx="16"/><rect class="box" x="12" y="12" width="100" height="100" rx="12"/><use href="#CHANNEL_JAGGED" x="12" y="12" width="100" height="100"/><text class="fam" x="122" y="30">CANAL</text><text class="name" x="122" y="50">Serrilhado</text><text class="id" x="12" y="132">CHANNEL_JAGGED</text></g>
+
+    <g transform="translate(0,170)"><rect class="card" width="210" height="150" rx="16"/><rect class="box" x="12" y="12" width="100" height="100" rx="12"/><use href="#ELEMENT_IGNIS" x="12" y="12" width="100" height="100"/><text class="fam" x="122" y="30">ELEMENTO</text><text class="name" x="122" y="50">Ignis</text><text class="id" x="12" y="132">ELEMENT_IGNIS</text></g>
+    <g transform="translate(230,170)"><rect class="card" width="210" height="150" rx="16"/><rect class="box" x="12" y="12" width="100" height="100" rx="12"/><use href="#ELEMENT_AQUA" x="12" y="12" width="100" height="100"/><text class="fam" x="122" y="30">ELEMENTO</text><text class="name" x="122" y="50">Aqua</text><text class="id" x="12" y="132">ELEMENT_AQUA</text></g>
+    <g transform="translate(460,170)"><rect class="card" width="210" height="150" rx="16"/><rect class="box" x="12" y="12" width="100" height="100" rx="12"/><use href="#ELEMENT_VENTUS" x="12" y="12" width="100" height="100"/><text class="fam" x="122" y="30">ELEMENTO</text><text class="name" x="122" y="50">Ventus</text><text class="id" x="12" y="132">ELEMENT_VENTUS</text></g>
+    <g transform="translate(690,170)"><rect class="card" width="210" height="150" rx="16"/><rect class="box" x="12" y="12" width="100" height="100" rx="12"/><use href="#ELEMENT_TERRA" x="12" y="12" width="100" height="100"/><text class="fam" x="122" y="30">ELEMENTO</text><text class="name" x="122" y="50">Terra</text><text class="id" x="12" y="132">ELEMENT_TERRA</text></g>
+    <g transform="translate(920,170)"><rect class="card" width="210" height="150" rx="16"/><rect class="box" x="12" y="12" width="100" height="100" rx="12"/><use href="#ELEMENT_LUX" x="12" y="12" width="100" height="100"/><text class="fam" x="122" y="30">ELEMENTO</text><text class="name" x="122" y="50">Lux</text><text class="id" x="12" y="132">ELEMENT_LUX</text></g>
+
+    <g transform="translate(0,340)"><rect class="card" width="210" height="150" rx="16"/><rect class="box" x="12" y="12" width="100" height="100" rx="12"/><use href="#ELEMENT_UMBRA" x="12" y="12" width="100" height="100"/><text class="fam" x="122" y="30">ELEMENTO</text><text class="name" x="122" y="50">Umbra</text><text class="id" x="12" y="132">ELEMENT_UMBRA</text></g>
+    <g transform="translate(230,340)"><rect class="card" width="210" height="150" rx="16"/><rect class="box" x="12" y="12" width="100" height="100" rx="12"/><use href="#ACTION_EMIT" x="12" y="12" width="100" height="100"/><text class="fam" x="122" y="30">AÇÃO</text><text class="name" x="122" y="50">Emitir</text><text class="id" x="12" y="132">ACTION_EMIT</text></g>
+    <g transform="translate(460,340)"><rect class="card" width="210" height="150" rx="16"/><rect class="box" x="12" y="12" width="100" height="100" rx="12"/><use href="#ACTION_CONTAIN" x="12" y="12" width="100" height="100"/><text class="fam" x="122" y="30">AÇÃO</text><text class="name" x="122" y="50">Conter</text><text class="id" x="12" y="132">ACTION_CONTAIN</text></g>
+    <g transform="translate(690,340)"><rect class="card" width="210" height="150" rx="16"/><rect class="box" x="12" y="12" width="100" height="100" rx="12"/><use href="#ACTION_CUT" x="12" y="12" width="100" height="100"/><text class="fam" x="122" y="30">AÇÃO</text><text class="name" x="122" y="50">Cortar</text><text class="id" x="12" y="132">ACTION_CUT</text></g>
+    <g transform="translate(920,340)"><rect class="card" width="210" height="150" rx="16"/><rect class="box" x="12" y="12" width="100" height="100" rx="12"/><use href="#FORM_PROJECTILE" x="12" y="12" width="100" height="100"/><text class="fam" x="122" y="30">FORMA</text><text class="name" x="122" y="50">Projétil</text><text class="id" x="12" y="132">FORM_PROJECTILE</text></g>
+
+    <g transform="translate(0,510)"><rect class="card" width="210" height="150" rx="16"/><rect class="box" x="12" y="12" width="100" height="100" rx="12"/><use href="#FORM_BARRIER" x="12" y="12" width="100" height="100"/><text class="fam" x="122" y="30">FORMA</text><text class="name" x="122" y="50">Barreira</text><text class="id" x="12" y="132">FORM_BARRIER</text></g>
+    <g transform="translate(230,510)"><rect class="card" width="210" height="150" rx="16"/><rect class="box" x="12" y="12" width="100" height="100" rx="12"/><use href="#TARGET_SINGLE" x="12" y="12" width="100" height="100"/><text class="fam" x="122" y="30">ALVO</text><text class="name" x="122" y="50">Alvo Único</text><text class="id" x="12" y="132">TARGET_SINGLE</text></g>
+    <g transform="translate(460,510)"><rect class="card" width="210" height="150" rx="16"/><rect class="box" x="12" y="12" width="100" height="100" rx="12"/><use href="#TARGET_AREA" x="12" y="12" width="100" height="100"/><text class="fam" x="122" y="30">ALVO</text><text class="name" x="122" y="50">Área</text><text class="id" x="12" y="132">TARGET_AREA</text></g>
+  </g>
+</svg>
