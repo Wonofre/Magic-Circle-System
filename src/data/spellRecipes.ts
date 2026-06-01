@@ -3,7 +3,7 @@ import type { SpellRecipe } from "@/types/spellCard";
 export const spellRecipes: readonly SpellRecipe[] = [
   {
     id: "element_emit_projectile_enemy",
-    name: "Arcane Bolt",
+    name: "Projétil Arcano",
     kind: "attack",
     requiredRoles: ["container", "source", "element", "action", "form"],
     optionalRoles: ["target", "ink", "risk", "time"],
@@ -13,7 +13,7 @@ export const spellRecipes: readonly SpellRecipe[] = [
   },
   {
     id: "earth_contain_barrier_self",
-    name: "Warding Circle",
+    name: "Círculo de Proteção",
     kind: "defense",
     requiredRoles: ["container", "source", "element", "defense"],
     optionalRoles: ["form", "target", "ink", "time"],
@@ -23,7 +23,7 @@ export const spellRecipes: readonly SpellRecipe[] = [
   },
   {
     id: "restore_self_support",
-    name: "Restorative Seal",
+    name: "Selo Restaurador",
     kind: "support",
     requiredRoles: ["container", "source", "element", "action"],
     optionalRoles: ["target", "form", "ink", "time"],
@@ -35,7 +35,7 @@ export const spellRecipes: readonly SpellRecipe[] = [
 
 export const fallbackSpellRecipe: SpellRecipe = {
   id: "improvised_spell_graph",
-  name: "Improvised Spell",
+  name: "Mandala Improvisada",
   kind: "utility",
   requiredRoles: ["container", "source", "element"],
   optionalRoles: ["action", "form", "target", "defense", "time", "risk", "ink"],
