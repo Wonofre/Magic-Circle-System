@@ -1,5 +1,5 @@
 import { createSpellHash } from "@/lib/recognizer/graphCompiler";
-import { ACTIVE_SIGIL_TYPES, ACTIVE_SIGN_TYPES } from "@/lib/magicSystem";
+import { activeLegacySigils, activeLegacySigns, defaultKnownRuneTemplateIds } from "@/data/activeRuneCatalog";
 import type { SigilType, SignType, Spell } from "@/types/magic";
 import type { CodexSpellEntry, GrimoireLoadout } from "@/types/codex";
 import type { SpellCard } from "@/types/spellCard";
@@ -7,38 +7,12 @@ import type { SemanticRiskLevel } from "@/types/recognition";
 
 const CODEX_STORAGE_KEY = "magic-circle-codex-v1";
 
-const ALL_LEGACY_SIGILS: readonly SigilType[] = [...ACTIVE_SIGIL_TYPES];
+const ALL_LEGACY_SIGILS: readonly SigilType[] = [...activeLegacySigils];
 
-const ALL_LEGACY_SIGNS: readonly SignType[] = [...ACTIVE_SIGN_TYPES];
+const ALL_LEGACY_SIGNS: readonly SignType[] = [...activeLegacySigns];
 
 export const defaultGrimoireLoadout: GrimoireLoadout = {
-  knownGlyphIds: [
-    "FRAME_CIRCLE_CONTAINMENT",
-    "SOURCE_DOT",
-    "ELEMENT_IGNIS",
-    "ELEMENT_AQUA",
-    "ELEMENT_TERRA",
-    "ELEMENT_VENTUS",
-    "ELEMENT_LUX",
-    "ELEMENT_UMBRA",
-    "ELEMENT_VITA",
-    "ELEMENT_MENS",
-    "DERIVED_GELU",
-    "DERIVED_FULMEN",
-    "ACTION_EMIT",
-    "ACTION_CONTAIN",
-    "ACTION_RESTORE",
-    "ACTION_SEAL",
-    "FORM_PROJECTILE",
-    "FORM_BEAM",
-    "FORM_AURA",
-    "FORM_WAVE",
-    "FORM_CHAIN",
-    "FORM_RAIN",
-    "DEFENSE_SHIELD",
-    "TARGET_ENEMY",
-    "TARGET_SELF",
-  ],
+  knownGlyphIds: defaultKnownRuneTemplateIds,
   discoveredGlyphIds: [],
   masteredGlyphIds: [],
   knownLegacySigils: ALL_LEGACY_SIGILS,
@@ -68,6 +42,9 @@ const masteryFromStats = (castCount: number, bestPrecision: number): CodexSpellE
 };
 
 const sortKeys = (values: readonly string[]): readonly string[] => [...values].sort();
+
+const getEntryCodexTemplateIds = (entry: CodexSpellEntry): readonly string[] =>
+  entry.codexTemplateIds ?? entry.componentTemplateIds;
 
 export const createLegacySpellHash = (
   sigils: readonly SigilType[],
@@ -107,7 +84,7 @@ export const getAllowedGlyphIds = (
   for (const entry of entries) {
     const shouldUnlock = entry.mastery === "discovered" || entry.mastery === "practiced" || entry.mastery === "mastered";
     if (!shouldUnlock) continue;
-    entry.componentTemplateIds.forEach((id) => ids.add(id));
+    getEntryCodexTemplateIds(entry).forEach((id) => ids.add(id));
   }
 
   return ids;
@@ -148,7 +125,7 @@ export const validateSpellCardForLoadout = (
   entries: readonly CodexSpellEntry[] = [],
 ): SpellCardLoadoutValidation => {
   const allowedGlyphIds = getAllowedGlyphIds(loadout, entries);
-  const missingGlyphIds = card.componentTemplateIds.filter((id) => !allowedGlyphIds.has(id));
+  const missingGlyphIds = card.codexTemplateIds.filter((id) => !allowedGlyphIds.has(id));
   const recipeAllowed = loadout.allowedRecipeIds.includes(card.recipeId);
   const riskLevel = getSpellCardRiskLevel(card);
   const riskAllowed = RISK_RANK[riskLevel] <= RISK_RANK[loadout.maxRiskLevel];
@@ -231,6 +208,7 @@ const upsertCodexEntry = (
     name: nextEntry.name,
     kind: nextEntry.kind,
     target: nextEntry.target,
+    codexTemplateIds: nextEntry.codexTemplateIds ?? existing.codexTemplateIds,
     componentTemplateIds: nextEntry.componentTemplateIds,
     legacySigils: nextEntry.legacySigils ?? existing.legacySigils,
     legacySigns: nextEntry.legacySigns ?? existing.legacySigns,
@@ -261,6 +239,10 @@ export const recordLegacySpellDiscovery = (
     name: spell.namePt,
     kind: spell.healing > 0 ? "support" : spell.shield > 0 ? "defense" : "attack",
     target: spell.healing > 0 || spell.shield > 0 ? "self" : "enemy",
+    codexTemplateIds: [
+      ...spell.glyphPattern.sigils.map((sigil) => `legacy:sigil:${sigil}`),
+      ...spell.glyphPattern.signs.map((sign) => `legacy:sign:${sign}`),
+    ],
     componentTemplateIds: [
       ...spell.glyphPattern.sigils.map((sigil) => `legacy:sigil:${sigil}`),
       ...spell.glyphPattern.signs.map((sign) => `legacy:sign:${sign}`),
@@ -291,7 +273,8 @@ export const recordSpellCardDiscovery = (
     name: card.name,
     kind: card.kind,
     target: card.target,
-    componentTemplateIds: card.componentTemplateIds,
+    codexTemplateIds: card.codexTemplateIds,
+    componentTemplateIds: card.codexTemplateIds,
     effectSummary: `${card.kind} spell with ${card.potency} potency.`,
     bestPrecision: card.stability,
     bestStability: card.stability,

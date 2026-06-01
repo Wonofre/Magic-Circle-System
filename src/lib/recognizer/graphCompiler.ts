@@ -236,7 +236,7 @@ export const compileSpellGraph = (
   options: SpellGraphCompileOptions = {},
 ): SpellGraphCompileResult => {
   const addDefaultTarget = options.addDefaultTarget ?? true;
-  const sortedInputs = sortGlyphInputs(glyphInputs);
+  const sortedInputs = options.preserveMandalaOrder ? glyphInputs : sortGlyphInputs(glyphInputs);
   const nodes = sortedInputs.map(makeNode);
   const hasTarget = nodes.some((node) => node.semanticRole === "target");
   const nodesWithDefaultTarget =

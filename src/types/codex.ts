@@ -8,6 +8,7 @@ export interface CodexSpellEntry {
   readonly name: string;
   readonly kind: SpellCardKind;
   readonly target: SpellCardTarget;
+  readonly codexTemplateIds?: readonly string[];
   readonly componentTemplateIds: readonly string[];
   readonly legacySigils?: readonly SigilType[];
   readonly legacySigns?: readonly SignType[];

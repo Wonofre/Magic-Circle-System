@@ -1,61 +1,14 @@
 import { getGlyphById } from "@/data/glyphTemplates";
+import { getTemplateIdsForActiveLegacySign } from "@/data/activeRuneCatalog";
+import { getTemplateIdForLegacySigil } from "@/data/magicOntology";
 import { compileSpellCardFromSemanticResults } from "@/lib/spell/spellCompiler";
-import type { GlyphComponent, SigilType, SignType } from "@/types/magic";
+import type { GlyphComponent } from "@/types/magic";
 import type {
   SemanticMarginResult,
   TemplateMatchCandidate,
 } from "@/types/recognition";
 import type { SpellCompileResult } from "@/types/spellCard";
 import type { GlyphTemplate } from "@/types/glyphTemplates";
-
-const SIGIL_TEMPLATE_BY_TYPE: Record<SigilType, string> = {
-  fire: "ELEMENT_IGNIS",
-  water: "ELEMENT_AQUA",
-  earth: "ELEMENT_TERRA",
-  wind: "ELEMENT_VENTUS",
-  light: "ELEMENT_LUX",
-  ice: "DERIVED_GELU",
-  shadow: "ELEMENT_UMBRA",
-  thunder: "DERIVED_FULMEN",
-  nature: "ELEMENT_VITA",
-  void: "ELEMENT_MENS",
-};
-
-const getSignTemplates = (sign: SignType): readonly string[] => {
-  switch (sign) {
-    case "heal_sign":
-      return ["ACTION_RESTORE", "FORM_AURA", "TARGET_SELF"];
-    case "shield_sign":
-    case "float":
-    case "billowing":
-    case "reflect":
-    case "anchor":
-      return ["ACTION_CONTAIN", "DEFENSE_SHIELD", "TARGET_SELF"];
-    case "chain":
-    case "pull":
-    case "convergence":
-    case "collection":
-      return ["ACTION_SEAL", "FORM_CHAIN", "TARGET_ENEMY"];
-    case "column":
-      return ["ACTION_EMIT", "FORM_BEAM", "TARGET_ENEMY"];
-    case "rain":
-      return ["ACTION_EMIT", "FORM_RAIN", "TARGET_ENEMY"];
-    case "dispersion":
-    case "weave":
-      return ["ACTION_EMIT", "FORM_WAVE", "TARGET_ENEMY"];
-    case "crush":
-    case "explosion":
-      return ["ACTION_EMIT", "FORM_PROJECTILE", "TARGET_ENEMY", "RISK_BACKFLOW"];
-    case "levitation":
-    case "direction":
-    case "bolt":
-    case "enlarge":
-    case "bird":
-    case "spiral":
-    default:
-      return ["ACTION_EMIT", "FORM_PROJECTILE", "TARGET_ENEMY"];
-  }
-};
 
 const unique = <T,>(values: readonly T[]): readonly T[] => [...new Set(values)];
 
@@ -72,11 +25,10 @@ export const getTemplateIdsFromLegacyComponents = (
 
   return unique([
     ...(hasRing ? ["FRAME_CIRCLE_CONTAINMENT"] : []),
-    "SOURCE_DOT",
-    ...sigils.map((sigil) => SIGIL_TEMPLATE_BY_TYPE[sigil]),
-    ...(signs.length === 0
-      ? ["ACTION_EMIT", "FORM_PROJECTILE", "TARGET_ENEMY"]
-      : signs.flatMap(getSignTemplates)),
+    ...sigils
+      .map(getTemplateIdForLegacySigil)
+      .filter((id): id is string => Boolean(id)),
+    ...signs.flatMap(getTemplateIdsForActiveLegacySign),
   ]);
 };
 

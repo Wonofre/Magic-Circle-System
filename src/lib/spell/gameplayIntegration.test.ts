@@ -2,13 +2,15 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { getGlyphById } from "@/data/glyphTemplates";
+import { getLegacySigilForTemplateId } from "@/data/magicOntology";
 import { analyzeRingQuality } from "@/lib/magicSystem";
-import { defaultGrimoireLoadout, validateSpellCardForLoadout } from "@/lib/spell/codexStore";
+import { defaultGrimoireLoadout, recordSpellCardDiscovery, validateSpellCardForLoadout } from "@/lib/spell/codexStore";
+import { chooseEnemySpellPlan } from "@/lib/spell/enemySpellAI";
 import { calculateSpellCardInkCost, simulateInkSpend } from "@/lib/spell/inkSimulator";
 import { compileSpellFromLegacyComponents } from "@/lib/spell/legacyGlyphAdapter";
 import { compileSpellFromStrokes } from "@/lib/spell/spellCompiler";
 import { drawingStrokesToRecognitionStrokes, hasPointerDynamics } from "@/lib/spell/strokeAdapter";
-import type { DrawingStroke, GlyphComponent, Point, SigilType } from "@/types/magic";
+import type { DrawingStroke, Entity, GlyphComponent, Point, SigilType } from "@/types/magic";
 import type { RecognitionStroke } from "@/types/recognition";
 
 const makeCircle = (
@@ -56,6 +58,28 @@ const compileCard = (sigil: SigilType = "fire") => {
 
   return result.card;
 };
+
+const makeEntity = (element: SigilType | null, overrides: Partial<Entity> = {}): Entity => ({
+  id: `entity-${element ?? "none"}`,
+  name: "Test Entity",
+  hp: 30,
+  maxHp: 30,
+  shield: 0,
+  ink: 12,
+  maxInk: 12,
+  inkRegenPerTurn: 3,
+  inkPurity: 1,
+  inkViscosity: 0.5,
+  inkVolatility: 0.12,
+  inkAffinity: null,
+  activeInfusionIds: [],
+  element,
+  weakness: null,
+  resistance: null,
+  status: [],
+  isPlayer: false,
+  ...overrides,
+});
 
 const strokesFromTemplate = (
   templateId: string,
@@ -126,8 +150,8 @@ describe("ring quality", () => {
 describe("Codex and SpellCard integration", () => {
   it("compiles the new component recognizer and ignores one unrecognized stroke", () => {
     const result = compileSpellFromStrokes([
+      ...strokesFromTemplate("FRAME_CIRCLE_CONTAINMENT", 80, 80),
       ...strokesFromTemplate("ELEMENT_IGNIS", 90, 90),
-      ...strokesFromTemplate("ACTION_EMIT", 250, 95),
       {
         id: "unknown-test-stroke",
         points: [
@@ -153,6 +177,44 @@ describe("Codex and SpellCard integration", () => {
     expect(result.semanticResults.some((semantic) => semantic.candidate?.template.id === "unknown-test-stroke")).toBe(false);
   });
 
+  it("adds mandala positions, source stroke ids, and circle quality for freehand strokes", () => {
+    const result = compileSpellFromStrokes([
+      ...strokesFromTemplate("FRAME_CIRCLE_CONTAINMENT", 80, 80),
+      ...strokesFromTemplate("ELEMENT_IGNIS", 90, 90),
+      ...strokesFromTemplate("ACTION_EMIT", 250, 95),
+    ]);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const mandala = result.card.mandala;
+    expect(mandala).toBeDefined();
+    expect(mandala?.circleQuality.overall).toBeGreaterThan(75);
+
+    const frame = mandala?.symbols.find((symbol) => symbol.templateId === "FRAME_CIRCLE_CONTAINMENT");
+    const ignis = mandala?.symbols.find((symbol) => symbol.templateId === "ELEMENT_IGNIS");
+    const source = mandala?.symbols.find((symbol) => symbol.templateId === "SOURCE_DOT");
+
+    expect(frame?.position?.zone).toBe("frame");
+    expect(frame?.sourceStrokeIds.length).toBeGreaterThan(0);
+    expect(ignis?.position).toBeDefined();
+    expect(ignis?.sourceStrokeIds.length).toBeGreaterThan(0);
+    expect(source?.isDefault).toBe(true);
+    expect(source?.position).toBeUndefined();
+    expect(source?.sourceStrokeIds).toEqual([]);
+  });
+
+  it("does not compile a SpellCard without a drawn frame", () => {
+    const result = compileSpellFromStrokes([
+      ...strokesFromTemplate("ELEMENT_IGNIS", 90, 90),
+      ...strokesFromTemplate("ACTION_EMIT", 250, 95),
+    ]);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure.graphIssues?.some((issue) => issue.code === "missing_frame")).toBe(true);
+  });
+
   it("generates a SpellCard through catalog glyph ids", () => {
     const card = compileCard("fire");
 
@@ -162,6 +224,64 @@ describe("Codex and SpellCard integration", () => {
       "SOURCE_DOT",
       "ELEMENT_IGNIS",
       "ACTION_EMIT",
+    ]));
+    expect(card.drawnTemplateIds).toEqual(expect.arrayContaining([
+      "FRAME_CIRCLE_CONTAINMENT",
+      "ELEMENT_IGNIS",
+    ]));
+    expect(card.defaultedTemplateIds).toEqual(expect.arrayContaining([
+      "SOURCE_DOT",
+      "ACTION_EMIT",
+      "FORM_PROJECTILE",
+      "TARGET_ENEMY",
+    ]));
+    expect(card.codexTemplateIds).toEqual([
+      "FRAME_CIRCLE_CONTAINMENT",
+      "ELEMENT_IGNIS",
+    ]);
+    expect(card.name).not.toContain(" / ");
+    expect(card.name).toBe("Projetil Igneo");
+    expect(card.mandala).toBeDefined();
+    expect(card.mandala?.symbols.filter((symbol) => symbol.isDrawn).map((symbol) => symbol.templateId)).toEqual([
+      "FRAME_CIRCLE_CONTAINMENT",
+      "ELEMENT_IGNIS",
+    ]);
+    expect(card.mandala?.symbols.filter((symbol) => symbol.isDefault).map((symbol) => symbol.templateId)).toEqual([
+      "SOURCE_DOT",
+      "ACTION_EMIT",
+      "FORM_PROJECTILE",
+      "TARGET_ENEMY",
+    ]);
+    expect(card.mandala?.formulaReading).toContain("Circulo de Contencao");
+    expect(card.mandala?.formulaReading).toContain("Ignis");
+    expect(card.mandala?.formulaReading).not.toContain("/");
+  });
+
+  it("generates a stable mandala hash for repeated legacy compilations", () => {
+    const first = compileCard("fire");
+    const second = compileCard("fire");
+
+    expect(first.mandala?.mandalaHash).toMatch(/^mandala_/);
+    expect(first.mandala?.mandalaHash).toBe(second.mandala?.mandalaHash);
+  });
+
+  it("does not record inferred defaults as Codex discoveries", () => {
+    const card = compileCard("fire");
+    const entries = recordSpellCardDiscovery([], card);
+
+    expect(entries[0].componentTemplateIds).toEqual([
+      "FRAME_CIRCLE_CONTAINMENT",
+      "ELEMENT_IGNIS",
+    ]);
+    expect(entries[0].codexTemplateIds).toEqual([
+      "FRAME_CIRCLE_CONTAINMENT",
+      "ELEMENT_IGNIS",
+    ]);
+    expect(entries[0].componentTemplateIds).not.toEqual(expect.arrayContaining([
+      "SOURCE_DOT",
+      "ACTION_EMIT",
+      "FORM_PROJECTILE",
+      "TARGET_ENEMY",
     ]));
   });
 
@@ -177,6 +297,14 @@ describe("Codex and SpellCard integration", () => {
     expect(validateSpellCardForLoadout(unknownCard, defaultGrimoireLoadout).ok).toBe(true);
     expect(validateSpellCardForLoadout(unknownCard, loadoutWithoutIce).ok).toBe(false);
     expect(validateSpellCardForLoadout(unknownCard, loadoutWithoutIce).missingGlyphIds).toContain("DERIVED_GELU");
+  });
+
+  it("does not treat ELEMENT_MENS as legacy void", () => {
+    expect(getLegacySigilForTemplateId("ELEMENT_MENS")).toBeUndefined();
+    expect(compileSpellFromLegacyComponents([
+      makeComponent("sigil", { sigilType: "void" }),
+      makeComponent("ring"),
+    ], 92).ok).toBe(false);
   });
 
   it("blocks recipes that are not equipped", () => {
@@ -210,6 +338,17 @@ describe("Codex and SpellCard integration", () => {
 });
 
 describe("enemy turn migration", () => {
+  it("uses derived templates for enemy ice and thunder plans", () => {
+    const player = makeEntity(null, { id: "player", isPlayer: true });
+    const icePlan = chooseEnemySpellPlan(makeEntity("ice", { id: "enemy-ice-3" }), player);
+    const thunderPlan = chooseEnemySpellPlan(makeEntity("thunder", { id: "enemy-thunder-3" }), player);
+
+    expect(icePlan.templateIds).toContain("DERIVED_GELU");
+    expect(icePlan.templateIds).not.toContain("ELEMENT_AQUA");
+    expect(thunderPlan.templateIds).toContain("DERIVED_FULMEN");
+    expect(thunderPlan.templateIds).not.toContain("ELEMENT_LUX");
+  });
+
   it("does not call getEnemyAction from App", () => {
     const appSource = readFileSync(resolve(process.cwd(), "src/App.tsx"), "utf8");
 

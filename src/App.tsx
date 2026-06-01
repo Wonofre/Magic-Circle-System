@@ -24,6 +24,7 @@ import {
   validateSpellCardForLoadout,
 } from '@/lib/spell/codexStore';
 import { resolveDiegeticFailure } from '@/lib/recognizer/failureResolver';
+import { getLegacySigilForTemplateId } from '@/data/magicOntology';
 import { getGlyphById } from '@/data/glyphTemplates';
 import { compileSpellFromStrokes } from '@/lib/spell/spellCompiler';
 import { drawingStrokesToRecognitionStrokes } from '@/lib/spell/strokeAdapter';
@@ -87,22 +88,9 @@ type GameplayCastResult = CastResult & {
   telemetry?: RecognitionTelemetryEvent;
 };
 
-const ELEMENT_BY_TEMPLATE_ID: Record<string, SigilType> = {
-  ELEMENT_IGNIS: 'fire',
-  ELEMENT_AQUA: 'water',
-  ELEMENT_TERRA: 'earth',
-  ELEMENT_VENTUS: 'wind',
-  ELEMENT_LUX: 'light',
-  DERIVED_GELU: 'ice',
-  ELEMENT_UMBRA: 'shadow',
-  DERIVED_FULMEN: 'thunder',
-  ELEMENT_VITA: 'nature',
-  ELEMENT_MENS: 'void',
-};
-
 const getPrimarySigilFromCard = (card: SpellCard): SigilType | undefined => {
   const elementNode = card.graph.nodes.find((node) => node.kind === 'element');
-  return elementNode ? ELEMENT_BY_TEMPLATE_ID[elementNode.templateId] : undefined;
+  return elementNode ? getLegacySigilForTemplateId(elementNode.templateId) : undefined;
 };
 
 const effectSummaryFromCard = (card: SpellCard): string => {

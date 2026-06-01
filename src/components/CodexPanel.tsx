@@ -48,6 +48,9 @@ const formatDate = (value: string): string =>
 
 const unique = <T,>(values: readonly T[]): readonly T[] => [...new Set(values)];
 
+const getEntryCodexTemplateIds = (entry: CodexSpellEntry): readonly string[] =>
+  entry.codexTemplateIds ?? entry.componentTemplateIds;
+
 const roleLayout: Record<GlyphSemanticRole, { x: number; y: number; size: number }> = {
   container: { x: 40, y: 40, size: 72 },
   source: { x: 40, y: 40, size: 13 },
@@ -120,7 +123,7 @@ function TemplateGlyphMark({ glyph }: { readonly glyph: GlyphTemplate }) {
 }
 
 function SpellTemplatePreview({ entry }: { readonly entry: CodexSpellEntry }) {
-  const glyphs = entry.componentTemplateIds
+  const glyphs = getEntryCodexTemplateIds(entry)
     .map((id) => getGlyphById(id))
     .filter((glyph): glyph is GlyphTemplate => Boolean(glyph));
   const orderedGlyphs = [
@@ -168,7 +171,7 @@ export function CodexPanel({
   const discoveredSigns = unique(
     entries.flatMap((entry) => entry.legacySigns ?? []),
   ) as readonly SignType[];
-  const discoveredGlyphIds = unique(entries.flatMap((entry) => entry.componentTemplateIds));
+  const discoveredGlyphIds = unique(entries.flatMap(getEntryCodexTemplateIds));
   const masteredCount = entries.filter((entry) => entry.mastery === "mastered").length;
 
   return (
@@ -280,7 +283,7 @@ export function CodexPanel({
                           {SIGNS[sign].namePt}
                         </span>
                       ))}
-                      {entry.componentTemplateIds.length > 0 && !entry.legacySigils && entry.componentTemplateIds.slice(0, 6).map((id) => (
+                      {getEntryCodexTemplateIds(entry).length > 0 && !entry.legacySigils && getEntryCodexTemplateIds(entry).slice(0, 6).map((id) => (
                         <span key={id} className="text-[10px] bg-black/35 text-amber-300/80 px-2 py-0.5 rounded">
                           {getGlyphById(id)?.display_name ?? id}
                         </span>

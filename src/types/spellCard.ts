@@ -6,6 +6,7 @@ import type {
   TopologyValidationResult,
 } from "@/types/recognition";
 import type { SpellGraph, SpellGraphCompileIssue } from "@/types/spellGraph";
+import type { MandalaDocument } from "@/types/mandala";
 import type { DiegeticFailureResolution } from "@/lib/recognizer/failureResolver";
 import type { RecognitionTelemetryEvent } from "@/types/telemetry";
 
@@ -35,7 +36,11 @@ export interface SpellCard {
   readonly potency: number;
   readonly target: SpellCardTarget;
   readonly recognitionOutcome: RecognitionOutcome;
+  readonly drawnTemplateIds: readonly string[];
+  readonly defaultedTemplateIds: readonly string[];
+  readonly codexTemplateIds: readonly string[];
   readonly componentTemplateIds: readonly string[];
+  readonly mandala?: MandalaDocument;
 }
 
 export interface SpellCompileFailure {

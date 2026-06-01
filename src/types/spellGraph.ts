@@ -57,6 +57,7 @@ export interface SpellGraphGlyphInput {
 
 export interface SpellGraphCompileOptions {
   readonly addDefaultTarget?: boolean;
+  readonly preserveMandalaOrder?: boolean;
 }
 
 export type SpellGraphCompileResult =

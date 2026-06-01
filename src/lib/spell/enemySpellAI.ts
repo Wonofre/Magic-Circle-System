@@ -1,7 +1,8 @@
 import { getGlyphById } from "@/data/glyphTemplates";
+import { getTemplateIdForLegacySigil } from "@/data/magicOntology";
 import { compileSpellGraph } from "@/lib/recognizer/graphCompiler";
 import { renderEnemySpellStrokes } from "@/lib/spell/enemyStrokeRenderer";
-import type { Entity, SigilType } from "@/types/magic";
+import type { Entity } from "@/types/magic";
 import type { RecognitionStroke } from "@/types/recognition";
 import type { SpellGraph } from "@/types/spellGraph";
 
@@ -31,19 +32,6 @@ export interface EnemySpellAIOptions {
   readonly turn?: number;
   readonly seed?: number;
 }
-
-const ELEMENT_TEMPLATE_BY_SIGIL: Record<SigilType, string> = {
-  fire: "ELEMENT_IGNIS",
-  water: "ELEMENT_AQUA",
-  earth: "ELEMENT_TERRA",
-  wind: "ELEMENT_VENTUS",
-  light: "ELEMENT_LUX",
-  ice: "ELEMENT_AQUA",
-  shadow: "ELEMENT_UMBRA",
-  thunder: "ELEMENT_LUX",
-  nature: "ELEMENT_VITA",
-  void: "ELEMENT_MENS",
-};
 
 const PROFILE_NOISE: Record<EnemySpellProfile, number> = {
   apprentice: 1.65,
@@ -94,7 +82,7 @@ const chooseIntent = (
 };
 
 const getElementTemplateId = (enemy: Entity): string =>
-  enemy.element ? ELEMENT_TEMPLATE_BY_SIGIL[enemy.element] : "ELEMENT_UMBRA";
+  enemy.element ? getTemplateIdForLegacySigil(enemy.element) ?? "ELEMENT_UMBRA" : "ELEMENT_UMBRA";
 
 const getTemplateIdsForIntent = (
   enemy: Entity,
