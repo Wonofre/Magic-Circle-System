@@ -1,7 +1,7 @@
-# brain.md — Magic Circle TCG / Codex Project Brain
+# brain.md - Magic Circle TCG / Codex Project Brain
 
-> Direção central para Codex, agentes de código e humanos.  
-> Projeto: **TCG de magia desenhada**, onde o jogador cria cartas desenhando círculos, glifos e signos com tinta mágica.
+> Direcao central para Codex, agentes de codigo e humanos.  
+> Projeto: **TCG de magia desenhada**, onde o jogador cria cartas desenhando circulos, glifos e signos com tinta magica.
 
 ---
 
@@ -9,16 +9,17 @@
 
 Antes de alterar qualquer arquivo, leia este documento inteiro.
 
-1. Não reescrever o projeto do zero sem necessidade.
-2. Evoluir por módulos pequenos, tipados e testáveis.
-3. O jogador desenha cartas/magias; não transformar em menu comum de skills.
-4. Rabisco não pode virar magia válida.
-5. Reconhecimento correto = forma + topologia + intenção + gramática.
-6. Parser determinístico é autoridade principal.
-7. Vision/ML pode ajudar no futuro, mas não deve substituir validação estrutural.
-8. MVP é **vs IA local**.
-9. Online, arena RPG, drops/eventos e IA avançada são fundação futura.
+1. Nao reescrever o projeto do zero sem necessidade.
+2. Evoluir por modulos pequenos, tipados e testaveis.
+3. O jogador desenha cartas/magias; nao transformar em menu comum de skills.
+4. Rabisco nao pode virar magia valida.
+5. Reconhecimento correto = forma + topologia + intencao + gramatica.
+6. Parser deterministico e autoridade principal.
+7. Vision/ML pode ajudar no futuro, mas nao deve substituir validacao estrutural.
+8. MVP e **vs IA local**.
+9. Online, arena RPG, drops/eventos e IA avancada sao fundacao futura.
 10. Toda task deve preservar `npm run build`.
+11. o resultado deve ser detalhado e resumido no final de cada tarefa que for concluida neste documento Brain na tarefa feita - pendencias que podem ter ficado também
 
 ---
 
@@ -28,13 +29,16 @@ Stack detectada: React + TypeScript + Vite.
 
 Arquivos atuais importantes:
 
-- `src/App.tsx` — fluxo principal de jogo, estados de batalha, desenho, casting, turno inimigo, vitória/derrota.
-- `src/components/GameCanvas.tsx` — canvas de desenho, captura de strokes, fechamento do anel e finalização do glifo.
-- `src/lib/magicSystem.ts` — definições de sigilos/signos, parâmetros geométricos e utilitários de reconhecimento.
-- `src/lib/spellEngine.ts` — resolução de magia, inimigos, ações de IA e magias pré-definidas.
-- `src/types/magic.ts` — tipos centrais do domínio mágico.
+- `src/App.tsx` - fluxo principal de jogo, estados de batalha, desenho, casting, turno inimigo, vitoria/derrota.
+- `src/components/GameCanvas.tsx` - canvas de desenho, captura de strokes, fechamento do anel e finalizacao do glifo.
+- `src/lib/magicSystem.ts` - definicoes de sigilos/signos, parametros geometricos e utilitarios de reconhecimento.
+- `src/lib/spellEngine.ts` - resolucao de magia, inimigos, acoes de IA e magias pre-definidas.
+- `src/types/magic.ts` - tipos centrais do dominio magico.
+- `src/types/glyphTemplates.ts` - tipos do catalogo seed de glifos.
+- `src/data/glyphTemplates.seed.json` - catalogo seed completo de glifos.
+- `src/data/glyphTemplates.ts` - importacao validada do catalogo e helpers de consulta.
 
-O projeto já está além do template Vite inicial, mas o `README.md` ainda precisa ser substituído por uma visão real do jogo.
+O projeto ja esta alem do template Vite inicial, mas o `README.md` ainda precisa ser substituido por uma visao real do jogo.
 
 ---
 
@@ -44,12 +48,14 @@ Estes foram criados localmente durante a conversa. Devem ser usados como fonte p
 
 ### `glyph_templates_v0_1.json`
 
-Destino recomendado: `src/data/glyphTemplates.seed.json` ou `src/data/glyphTemplates.ts`.
+Destino recomendado: `src/data/glyphTemplates.seed.json`.
+
+Status: importado para o app na Fase 1.
 
 Uso:
-- catálogo técnico de glifos;
+- catalogo tecnico de glifos;
 - templates vetoriais normalizados em `0..100`;
-- base para comparação com desenho do jogador;
+- base para comparacao com desenho do jogador;
 - inclui `id`, `family`, `semantic_role`, `strokes`, `ports`, `topology_signature` e thresholds.
 
 ### `glyph_sheet_v0_1.svg`
@@ -59,7 +65,7 @@ Destino recomendado: `docs/glyphs/glyph_sheet_seed.svg`.
 Uso:
 - folha visual para humanos;
 - exemplos de como cada signo deve parecer;
-- pode ser gerado em massa por código sem geração de imagem.
+- pode ser gerado em massa por codigo sem geracao de imagem.
 
 ### `glyph_sheet_viewer_v0_1.html`
 
@@ -67,8 +73,8 @@ Destino recomendado: `docs/glyphs/glyph_sheet_viewer.html`.
 
 Uso:
 - visualizador interativo dos glifos;
-- busca por família/tag;
-- inspeção de JSON técnico.
+- busca por familia/tag;
+- inspecao de JSON tecnico.
 
 ### `generate_glyph_sheet_v0_1.py`
 
@@ -76,54 +82,80 @@ Destino recomendado: `tools/generate_glyph_sheet.py`.
 
 Uso:
 - gerar SVG/HTML a partir do JSON;
-- manter assets reproduzíveis.
+- manter assets reproduziveis.
+
+### `deep-research-report.md`
+
+Destino recomendado: `docs/research/tcg_mvp_plan.md` e referencia de roadmap neste `brain.md`.
+
+Uso:
+- GDD tecnico do TCG de cartas desenhadas;
+- Spell Compiler como modulo central;
+- loadout de grimorio em vez de deck tradicional fixo;
+- IA local que escolhe um grafo canonico e mostra stroke replay;
+- telemetria, fundacao online autoritativa e arena futura.
+
+### `deep-research-report (1).md`
+
+Destino recomendado: `docs/research/free_draw_magic_recognition.md` e referencia de roadmap neste `brain.md`.
+
+Uso:
+- pesquisa de reconhecimento de desenho livre;
+- defesa de pipeline hibrido com captura vetorial, gate de rabisco, topologia, matching e parser;
+- separacao entre identidade do feitico e qualidade de execucao;
+- metricas de false positive, calibracao, hard negatives e anti-exploit.
 
 ### `magic_glyph_visual_sheet_v0_1.zip`
 
-Não recomendado commitar no repo. Usar como release artifact se necessário.
+Nao recomendado commitar no repo. Usar como release artifact se necessario.
 
 ---
 
-## 4. Visão de produto
+## 4. Visao de produto
 
 Pitch:
 
-> Um TCG onde as cartas não são apenas colecionadas: elas são desenhadas. Cada carta nasce de um círculo mágico feito com tinta arcana. O sistema lê a estrutura do desenho, compila sua intenção e transforma o resultado em uma magia jogável. Desenhos precisos geram magias fortes e estáveis; desenhos mal feitos falham, vazam, erram o alvo ou voltam contra o conjurador.
+> Um TCG onde as cartas nao sao apenas colecionadas: elas sao desenhadas. Cada carta nasce de um circulo magico feito com tinta arcana. O sistema le a estrutura do desenho, compila sua intencao e transforma o resultado em uma magia jogavel. Desenhos precisos geram magias fortes e estaveis; desenhos mal feitos falham, vazam, erram o alvo ou voltam contra o conjurador.
 
 MVP:
 
 - Combate 1v1 contra IA.
 - Jogador desenha magia/carta no canvas.
-- Sistema reconhece moldura, fonte, elemento, ação, forma e alvo.
+- Sistema reconhece moldura, fonte, elemento, acao, forma e alvo.
 - Sistema compila a magia em uma carta.
-- Recurso principal: **tinta mágica**.
-- IA também desenha sua magia; o jogo mostra o desenho da IA, nome e efeito.
+- Recurso principal: **tinta magica**.
+- IA tambem desenha sua magia; o jogo mostra o desenho da IA, nome e efeito.
 
 Futuro:
 
 - PvP online.
 - Drops/eventos para infundir tinta.
-- Arena RPG com puzzles e barreiras mágicas.
-- Grimório/Codex com magias descobertas.
-- Vision/ML como camada auxiliar de interpretação.
+- Arena RPG com puzzles e barreiras magicas.
+- Grimorio/Codex com magias descobertas.
+- Vision/ML como camada auxiliar de interpretacao.
 
 ---
 
-## 5. Arquitetura técnica alvo
+## 5. Arquitetura tecnica alvo
 
 Pipeline correto:
 
 ```txt
-DrawingStroke[]
--> normalização 0..100
--> simplificação / resampling
+DrawingStroke[] com x/y/t e metadados opcionais
+-> captura fiel de eventos coalescidos quando disponivel
+-> normalizacao 0..100
+-> limpeza, deduplicacao, simplificacao e resampling
+-> detector de ruido/scribble/unknown
+-> segmentacao em primitivas candidatas
 -> template matching vetorial
--> validação topológica
--> validação de portas/conexões
--> compilação em SpellGraph
--> simulação de fluxo de tinta
+-> validacao topologica
+-> validacao de portas/conexoes
+-> checagem de margem semantica
+-> compilacao em SpellGraph
+-> simulacao de fluxo de tinta
 -> SpellCard
 -> CastResult
+-> telemetria de decisao, falha e replay
 ```
 
 Pipeline proibido:
@@ -131,6 +163,13 @@ Pipeline proibido:
 ```txt
 rabisco -> classificador escolhe o mais parecido -> magia forte
 ```
+
+Decisao de arquitetura:
+
+- A identidade do feitico vem do parse estrutural.
+- A qualidade do desenho modula custo, estabilidade, potencia, duracao, risco e precisao.
+- IA/Vision pode ordenar candidatos legais ou ajudar em debug, mas nao pode inventar interpretacao fora da ontologia valida.
+- Preview pode ser rapido e permissivo; decisao final precisa ser deterministica e mais rigida.
 
 ---
 
@@ -142,13 +181,17 @@ src/
     glyphTemplates.seed.json
     spellRecipes.ts
     inkInfusions.ts
+    balanceTables.ts
 
   lib/
     recognizer/
       normalizeStrokes.ts
       resampleStrokes.ts
+      scribbleDetector.ts
+      primitiveSegmenter.ts
       templateMatcher.ts
       topologyValidator.ts
+      semanticMargin.ts
       graphCompiler.ts
       failureResolver.ts
 
@@ -156,17 +199,26 @@ src/
       spellCompiler.ts
       inkSimulator.ts
       enemySpellAI.ts
+      enemyStrokeRenderer.ts
+      spellHash.ts
+
+    telemetry/
+      recognitionTelemetry.ts
 
   components/
     GlyphDebugPanel.tsx
     SpellCardPreview.tsx
     EnemyCastPreview.tsx
     CodexPanel.tsx
+    RecognitionHeatmap.tsx
 
   types/
     glyphTemplates.ts
     spellGraph.ts
     spellCard.ts
+    recognition.ts
+    ink.ts
+    telemetry.ts
 ```
 
 ---
@@ -175,226 +227,462 @@ src/
 
 ### Glifo
 
-Símbolo reconhecível desenhado pelo jogador. Pode ser elemento, ação, forma, alvo, tempo, defesa ou risco.
+Simbolo reconhecivel desenhado pelo jogador. Pode ser elemento, acao, forma, alvo, tempo, defesa ou risco.
 
 ### Moldura
 
-Estrutura externa da carta/magia. Normalmente círculo, duplo círculo, triângulo, quadrado ou espiral.
+Estrutura externa da carta/magia. Normalmente circulo, duplo circulo, triangulo, quadrado ou espiral.
 
-### Tinta mágica
+### Tinta magica
 
-Recurso/mana do jogo. A tinta não é apenas custo; ela flui no desenho.
+Recurso/mana do jogo. A tinta nao e apenas custo; ela flui no desenho.
 
 ### SpellGraph
 
-Grafo compilado a partir dos glifos reconhecidos. Define fontes, conexões, elementos, ações, formas, alvos, riscos e estabilidade.
+Grafo canonico compilado a partir dos glifos reconhecidos. Define fontes, conexoes, elementos, acoes, formas, alvos, riscos, estabilidade e fluxo.
 
 ### SpellCard
 
-Carta jogável resultante do `SpellGraph`.
+Carta jogavel resultante do `SpellGraph`.
 
 ### SpellHash
 
-Hash determinístico da estrutura mágica. Mesma estrutura deve gerar mesma magia.
+Hash deterministico da estrutura magica. Mesma estrutura deve gerar mesma magia.
+
+### Spell Compiler
+
+Modulo puro que recebe strokes e contexto de turno, valida estrutura, gera candidatos, compila `SpellGraph`, simula tinta e retorna `SpellCard` ou falha diegetica.
+
+### Loadout de grimorio
+
+Substitui um deck tradicional de cartas prontas no MVP. Define glifos conhecidos, receitas descobertas, tintas, catalisadores e limites de risco permitidos no combate.
 
 ---
 
-## 8. Roadmap de ação para Codex
+## 8. Roadmap de acao para Codex
 
-### Fase 0 — Organização
+### Fase 0 - Organizacao
 
-- [ ] Substituir README genérico por README real do jogo.
-- [ ] Criar `docs/`.
-- [ ] Criar `docs/research/`.
-- [ ] Criar `docs/glyphs/`.
-- [ ] Adicionar este `brain.md`.
-- [ ] Garantir `npm run build`.
+- [ ] Substituir README generico por README real do jogo.
+- [x] Criar `docs/`.
+- [x] Criar `docs/research/`.
+- [x] Criar `docs/glyphs/`.
+- [x] Adicionar este `brain.md`.
+- [x] Garantir `npm run build` apos mudancas iniciais.
 
-### Fase 1 — Catálogo tipado
+Criterio de aceite:
+- estrutura base existe;
+- docs principais foram movidos ou resumidos;
+- build passa.
 
-- [ ] Criar `src/types/glyphTemplates.ts`.
-- [ ] Criar `src/data/glyphTemplates.seed.json`.
-- [ ] Criar helpers:
+### Fase 1 - Catalogo tipado
+
+- [x] Criar `src/types/glyphTemplates.ts`.
+- [x] Criar `src/data/glyphTemplates.seed.json`.
+- [x] Criar `src/data/glyphTemplates.ts`.
+- [x] Criar helpers:
   - `getGlyphById(id)`;
   - `getGlyphsByFamily(family)`;
   - `getGlyphsByRole(role)`.
-- [ ] Validar shape do JSON.
+- [x] Validar shape do JSON.
+- [x] Importar catalogo seed completo com 96 templates.
 
-Critério de aceite:
+Criterio de aceite:
 - build passa;
 - templates importam;
-- app consegue listar quantidade de templates.
+- app consegue listar quantidade de templates;
+- JSON invalido falha com erro claro.
 
-### Fase 2 — Normalização e resampling
+### Fase 2 - Captura, normalizacao e resampling
 
-- [ ] Criar `normalizeStrokes.ts`.
-- [ ] Converter strokes do canvas para espaço `0..100`.
-- [ ] Criar `resampleStroke(points, n)`.
-- [ ] Criar `resampleGlyph(strokes, totalPoints)`.
+- [x] Criar `src/types/recognition.ts`.
+- [x] Criar `src/lib/recognizer/normalizeStrokes.ts`.
+- [x] Converter strokes do canvas para espaco `0..100`.
+- [x] Preservar `x/y/t` como minimo canonico.
+- [x] Tratar `pressure`, `tilt`, `twist` e metadados de ponteiro como opcionais.
+- [x] Criar `resampleStroke(points, n)`.
+- [x] Criar `resampleGlyph(strokes, totalPoints)`.
+- [x] Deduplicar pontos repetidos e lidar com strokes vazios.
+- [x] Adicionar fixtures simples de strokes para testes futuros.
 
-Critério de aceite:
-- função pura;
-- sem dependência de React;
-- aceita strokes do `GameCanvas`.
+Criterio de aceite:
+- funcao pura;
+- sem dependencia de React;
+- aceita strokes do `GameCanvas`;
+- nao exige pressao/orientacao para funcionar;
+- build passa.
 
-### Fase 3 — Template matcher
+### Fase 3 - Detector de ruido, scribble e unknown
 
-- [ ] Criar `templateMatcher.ts`.
-- [ ] Comparar desenho normalizado contra templates.
-- [ ] Retornar top 5 candidatos.
-- [ ] Calcular confiança e margem semântica.
-- [ ] Criar classe `UNKNOWN/SCRIBBLE`.
+- [x] Criar `scribbleDetector.ts`.
+- [x] Calcular sinais basicos: tamanho, densidade, comprimento, auto-interseccoes aproximadas, numero de strokes e proporcao de ruido.
+- [x] Criar outcome `UNKNOWN`/`SCRIBBLE` antes do matcher.
+- [x] Definir thresholds iniciais conservadores.
+- [x] Criar casos hard negative manuais: rabisco, circulo aberto, glifo incompleto, sobretraco excessivo.
 
-Critério de aceite:
+Criterio de aceite:
+- rabisco obvio nao entra como candidato forte;
+- desenho vazio ou quase vazio falha cedo;
+- falha retorna motivo legivel para debug.
+
+### Fase 4 - Template matcher hibrido inicial
+
+- [x] Criar `templateMatcher.ts`.
+- [x] Comparar desenho normalizado contra templates.
+- [x] Retornar top 5 candidatos.
+- [x] Calcular confianca por template.
+- [x] Calcular margem top-1/top-2.
+- [x] Separar ranking local de decisao final.
+- [x] Deixar extensivel para `$Q/$P`, DTW, Hu Moments ou Shape Context sem acoplar ao MVP.
+
+Criterio de aceite:
 - desenho parecido retorna candidato correto;
-- rabisco retorna baixa confiança.
+- candidato sem margem suficiente nao e aceito automaticamente;
+- matcher sozinho nao gera magia valida.
 
-### Fase 4 — Topology gate
+### Fase 5 - Topology gate
 
-- [ ] Criar `topologyValidator.ts`.
-- [ ] Validar loops fechados.
-- [ ] Validar número de strokes abertos/fechados.
-- [ ] Validar interseções.
-- [ ] Validar ruído excedente.
-- [ ] Rejeitar candidato visualmente parecido, mas topologicamente errado.
+- [x] Criar `topologyValidator.ts`.
+- [x] Validar loops fechados.
+- [x] Validar numero de strokes abertos/fechados.
+- [x] Validar interseccoes esperadas.
+- [x] Validar fechamento minimo.
+- [x] Validar ruido desconectado.
+- [x] Validar portas basicas do template.
+- [x] Rejeitar candidato visualmente parecido, mas topologicamente errado.
 
-Critério de aceite:
-- círculo aberto não vira círculo fechado;
-- glifo com loops errados é recusado;
-- rabisco não vira magia válida.
+Criterio de aceite:
+- circulo aberto nao vira `FRAME_CIRCLE_CONTAINMENT`;
+- glifo com loops errados e recusado;
+- rabisco nao vira magia valida;
+- retorno explica qual regra topologica falhou.
 
-### Fase 5 — Debug panel de reconhecimento
+### Fase 6 - Margem semantica, calibracao e risco
 
-- [ ] Criar `GlyphDebugPanel.tsx`.
-- [ ] Mostrar top candidatos, confiança, margem e falhas.
-- [ ] Integrar em modo debug sem quebrar jogo atual.
+- [x] Criar `semanticMargin.ts`.
+- [x] Consolidar `min_confidence` e `min_semantic_margin` do template.
+- [x] Aplicar thresholds por familia/papel e por risco da magia.
+- [x] Criar niveis de outcome: `cast_clean`, `cast_weak`, `partial`, `miscast`, `fizzle`, `backfire`.
+- [x] Registrar porque um candidato foi aceito, instavel ou recusado.
 
-Critério de aceite:
-- usuário entende por que a magia passou/falhou.
+Criterio de aceite:
+- top-1 baixo ou margem pequena gera instabilidade/falha, nao chute;
+- glifos ofensivos ou perigosos podem exigir margem maior;
+- debug mostra confianca, margem e razao da decisao.
 
-### Fase 6 — SpellGraph
+### Fase 7 - Debug panel de reconhecimento
 
-- [ ] Criar `spellGraph.ts`.
-- [ ] Criar `graphCompiler.ts`.
-- [ ] Converter glifos reconhecidos em grafo.
-- [ ] Validar gramática mínima:
+- [x] Criar `GlyphDebugPanel.tsx`.
+- [x] Mostrar top candidatos, confianca, margem e falhas.
+- [x] Mostrar checks topologicos por template.
+- [x] Mostrar `UNKNOWN/SCRIBBLE` quando aplicavel.
+- [x] Integrar em modo debug sem quebrar jogo atual.
+
+Criterio de aceite:
+- usuario entende por que a magia passou/falhou;
+- painel ajuda balancear thresholds;
+- UI nao substitui regra do compilador.
+
+### Fase 8 - SpellGraph e gramatica minima
+
+- [x] Criar `src/types/spellGraph.ts`.
+- [x] Criar `graphCompiler.ts`.
+- [x] Converter glifos reconhecidos em grafo.
+- [x] Validar gramatica minima:
   - precisa de moldura;
-  - precisa de elemento/fonte;
-  - precisa de ação/forma;
-  - precisa de alvo ou alvo padrão.
+  - precisa de fonte;
+  - precisa de elemento;
+  - precisa de acao ou forma;
+  - precisa de alvo ou alvo padrao legal;
+  - conexoes precisam respeitar portas.
+- [x] Criar `spellHash` deterministico para o grafo canonico.
 
-Critério de aceite:
-- `Fogo + Emitir + Projétil + Alvo` gera magia ofensiva;
+Criterio de aceite:
+- `Fogo + Emitir + Projetil + Alvo` gera magia ofensiva;
 - `Terra + Conter + Barreira` gera magia defensiva;
-- sem moldura falha.
+- sem moldura falha;
+- grafos equivalentes geram mesmo `spellHash`.
 
-### Fase 7 — Tinta mágica
+Resultado:
+- criados `src/types/spellGraph.ts` e `src/lib/recognizer/graphCompiler.ts`;
+- `compileSpellGraph` recebe glifos reconhecidos, ordena canonicamente, cria nos/arestas, valida gramatica minima e gera `spellHash`;
+- `semanticResultsToGraphInputs` prepara resultados semanticos aceitos para o grafo;
+- alvo padrao legal e adicionado quando nao houver alvo explicito.
 
-- [ ] Adicionar `ink`, `maxInk`, `inkRegenPerTurn` ao player e IA.
-- [ ] Alterar spell engine para consumir tinta.
-- [ ] Custo depende de complexidade, estabilidade e infusão.
+Pendencias:
+- conexoes por portas ainda sao heuristicas e devem ficar mais rigorosas nas proximas fases;
+- segmentacao multi-glifo real ainda depende de fases futuras;
+- SpellGraph ainda nao resolve combate nem cria SpellCard.
 
-Critério de aceite:
+### Fase 9 - SpellCard e Spell Compiler
+
+- [x] Criar `src/types/spellCard.ts`.
+- [x] Criar `src/lib/spell/spellCompiler.ts`.
+- [x] Unificar normalizacao, matching, topologia, margem, grafo e tinta em uma API pura.
+- [x] Retornar `SpellCard` ou falha tipada.
+- [x] Separar identidade do feitico de qualidade de execucao.
+- [x] Criar primeiros `spellRecipes.ts`.
+
+Criterio de aceite:
+- uma chamada pura compila strokes em carta ou falha;
+- `App.tsx` ainda nao precisa ser refeito inteiro;
+- resultado inclui nome, custo, estabilidade, potencia, alvo e falhas.
+
+Resultado:
+- criados `src/types/spellCard.ts`, `src/data/spellRecipes.ts` e `src/lib/spell/spellCompiler.ts`;
+- `compileSpellFromStrokes` executa matcher, topologia, margem semantica e tenta compilar SpellGraph;
+- `compileSpellCardFromSemanticResults` aceita multiplos resultados semanticos e gera `SpellCard` quando a gramatica minima fecha;
+- `SpellCard` separa identidade (`graph`, `recipeId`, `componentTemplateIds`) de qualidade de execucao (`inkCost`, `stability`, `potency`, `recognitionOutcome`).
+
+Pendencias:
+- enquanto nao houver segmentacao multi-glifo, `compileSpellFromStrokes` tende a falhar em grafo incompleto para desenhos de glifo unico;
+- custo de tinta ainda e calculado de forma simples, aguardando Fase 10;
+- receitas iniciais sao minimas e servem como base para balanceamento posterior.
+
+### Fase 10 - Tinta magica
+
+- [x] Criar `src/types/ink.ts`.
+- [x] Adicionar `ink`, `maxInk`, `inkRegenPerTurn` ao player e IA.
+- [x] Criar `inkSimulator.ts`.
+- [x] Alterar spell engine para consumir tinta.
+- [x] Custo depende de complexidade, estabilidade, risco e infusao.
+- [x] Modelar pureza, viscosidade, volatilidade e afinidade como campos futuros.
+
+Criterio de aceite:
 - magia forte tem custo real;
-- tinta insuficiente gera falha clara.
+- tinta insuficiente gera falha clara;
+- excesso de tinta pode gerar sobrecarga/backfire;
+- item altera calculo, nao substitui desenho.
 
-### Fase 8 — Falhas diegéticas
+Resultado:
+- criados `src/types/ink.ts` e `src/lib/spell/inkSimulator.ts`;
+- `Entity` agora possui reservatorio de tinta com `ink`, `maxInk`, `inkRegenPerTurn`, pureza, viscosidade, volatilidade, afinidade e infusoes ativas;
+- `spellEngine` calcula custo de tinta para magias procedurais, falha claramente quando a tinta e insuficiente e adiciona custo nas acoes da IA;
+- `App.tsx` recebeu integracao minima para inicializar, exibir, gastar e regenerar tinta sem refatorar o fluxo principal.
 
-- [ ] Criar `failureResolver.ts`.
-- [ ] Mapear falhas:
+Pendencias:
+- sobrecarga/backfire por excesso de tinta ainda esta modelada como chance calculada, mas nao causa efeito de combate ate a Fase 11;
+- infusoes ainda sao ids/campos futuros, aguardando `inkInfusions.ts` na Fase 16;
+- o compilador novo de `SpellCard` ainda nao consome esta simulacao diretamente em combate porque a UI antiga continua usando `spellEngine`.
+
+### Fase 11 - Falhas diegeticas
+
+- [x] Criar `failureResolver.ts`.
+- [x] Mapear falhas:
   - `fizzle`;
   - `miscast`;
   - `leak`;
   - `backfire`;
-  - `wrong_target`.
-- [ ] Backfire pode causar dano ao jogador.
+  - `wrong_target`;
+  - `unknown`;
+  - `overload`.
+- [x] Severidade combina erro geometrico, topologia, ambiguidade, dinamica e tinta.
+- [x] Backfire pode causar dano ao jogador.
+- [x] Feedback deve apontar causa tecnica em linguagem diegetica.
 
-Critério de aceite:
-- falha parece consequência do desenho, não aleatoriedade.
+Criterio de aceite:
+- falha parece consequencia do desenho, nao aleatoriedade;
+- cada falha tem mensagem clara e efeito de jogo previsivel;
+- baixa confianca nao vira sucesso por conveniencia.
 
-### Fase 9 — IA que desenha
+Resultado:
+- criado `src/lib/recognizer/failureResolver.ts` como camada pura de resolucao de falhas;
+- falhas `fizzle`, `miscast`, `leak`, `backfire`, `wrong_target`, `unknown` e `overload` agora retornam severidade, mensagem diegetica, causa tecnica, sinais numericos e efeito futuro de combate;
+- severidade combina sinais de geometria, topologia, ambiguidade semantica, dinamica do traco e tinta;
+- `SpellCompileFailure` agora pode carregar `diegeticFailure`;
+- `spellCompiler.ts` anexa resolucao diegetica em rejeicao de reconhecimento, rejeicao semantica e grafo invalido;
+- `npm run build` passa.
 
-- [ ] Criar `enemySpellAI.ts`.
-- [ ] IA escolhe intenção.
-- [ ] IA escolhe receita.
-- [ ] IA gera strokes a partir dos templates com ruído controlado.
-- [ ] Criar `EnemyCastPreview.tsx`.
+Pendencias:
+- o fluxo visual antigo em `App.tsx` ainda nao consome `diegeticFailure`;
+- dano real de `backfire`/`overload` ainda fica como `casterDamageHint` para ser aplicado quando o combate migrar para o compilador novo;
+- `wrong_target` depende de issues de grafo e deve ficar mais rico quando conexoes/portas forem validadas com mais rigor.
 
-Critério de aceite:
+### Fase 12 - IA que desenha
+
+- [x] Criar `enemySpellAI.ts`.
+- [x] Criar `enemyStrokeRenderer.ts`.
+- [x] IA escolhe intencao tatica.
+- [x] IA escolhe receita/grafo canonico.
+- [x] IA gera strokes a partir dos templates com ruido controlado.
+- [x] Criar perfis iniciais: `apprentice`, `aggressive`, `defensive`, `control`, `master`.
+- [x] Criar `EnemyCastPreview.tsx`.
+- [ ] Opcional em debug: passar desenho da IA pelo mesmo compilador para validar replay.
+
+Criterio de aceite:
 - turno inimigo mostra desenho da magia, nome e efeito;
-- IA usa o mesmo vocabulário do jogador.
+- IA usa o mesmo vocabulario do jogador;
+- IA nao improvisa fora da ontologia valida.
 
-### Fase 10 — Grimório/Codex
+Resultado:
+- criado `src/lib/spell/enemySpellAI.ts` para escolher perfil, intencao tatica, templates validos e SpellGraph canonico;
+- criado `src/lib/spell/enemyStrokeRenderer.ts` para gerar strokes deterministas a partir dos templates com ruido controlado por perfil;
+- criados perfis `apprentice`, `aggressive`, `defensive`, `control` e `master`;
+- criado `src/components/EnemyCastPreview.tsx` para mostrar desenho, nome, custo/poder estimados, perfil e hash do grafo;
+- `App.tsx` agora escolhe um plano de magia no turno inimigo, mostra o desenho e registra nome/efeito no log;
+- `npm run build` passa.
 
-- [ ] Criar `CodexPanel.tsx`.
-- [ ] Persistir magias descobertas por `spellHash`.
-- [ ] Mostrar desenho, nome, componentes, efeito e melhor precisão.
+Pendencias:
+- o dano do turno inimigo ainda usa `getEnemyAction` legado para preservar balanceamento;
+- o replay da IA ainda nao passa pelo `compileSpellFromStrokes` em modo debug;
+- o preview aparece durante o turno inimigo, mas ainda nao anima stroke por stroke.
 
-Critério de aceite:
-- jogador consegue rever cartas criadas.
+### Fase 13 - Grimorio/Codex e loadout
 
-### Fase 11 — Infusões e drops
+- [x] Criar `CodexPanel.tsx`.
+- [x] Persistir magias descobertas por `spellHash`.
+- [x] Mostrar desenho, nome, componentes, efeito e melhor precisao.
+- [x] Criar loadout de grimorio com glifos conhecidos, receitas e tintas permitidas.
+- [x] Diferenciar magia descoberta de magia dominada.
+
+Criterio de aceite:
+- jogador consegue rever cartas criadas;
+- loadout limita o que pode ser compilado no duelo;
+- Codex ajuda aprender sem virar menu comum de skills.
+
+Resultado:
+- criado `src/types/codex.ts` com entradas de Codex, estados de dominio e loadout;
+- criado `src/lib/spell/codexStore.ts` para hash deterministico, persistencia em `localStorage`, upsert de descobertas e validacao do loadout;
+- criado `src/components/CodexPanel.tsx` para listar magias por `spellHash`, componentes, efeito, melhor precisao, custo, usos e dominio;
+- `App.tsx` agora abre o Codex no botao do grimorio, registra magias descobertas/conjuradas e impede conjuracao de componentes fora do loadout;
+- `npm run build` passa.
+
+Pendencias:
+- o Codex ainda mostra representacao textual/componentes, nao replay vetorial completo do desenho do jogador;
+- loadout inicial permite todos os glifos legados para preservar a jogabilidade atual;
+- integracao direta com `SpellCard` novo esta pronta em helper, mas o combate visual ainda usa o motor legado.
+
+### Fase 14 - Telemetria, metricas e hard negatives
+
+- [x] Criar `recognitionTelemetry.ts`.
+- [x] Registrar raw strokes, strokes normalizados, candidatos, margem, falhas, decisao final e contexto.
+- [x] Medir falso positivo de rabiscos.
+- [x] Medir falso negativo de desenhos validos.
+- [x] Medir matriz de confusao por glifo/familia.
+- [x] Criar fixture set de hard negatives.
+- [x] Preparar metricas futuras: precision/recall/F1, Brier/log loss para modelos probabilisticos.
+
+Criterio de aceite:
+- cada decisao de reconhecimento pode ser auditada;
+- regressao de falso positivo fica detectavel;
+- dados nao dependem de React.
+
+Resultado:
+- criado `src/types/telemetry.ts` com eventos auditaveis, contexto, candidatos, fixtures negativos, resumo de metricas e matriz de confusao;
+- criado `src/lib/telemetry/recognitionTelemetry.ts` para gerar eventos de reconhecimento, clonar strokes, resumir hard negatives e montar matriz de confusao;
+- criado `hardNegativeFixtureSet` reaproveitando fixtures de vazio, rabisco, circulo aberto, glifo incompleto e sobretraco;
+- `SpellCompileResult` agora pode carregar `telemetry`;
+- `spellCompiler.ts` anexa telemetria em rejeicao inicial, rejeicao semantica, grafo invalido e sucesso;
+- `npm run build` passa.
+
+Pendencias:
+- ainda nao ha tela dedicada para explorar a telemetria dentro do jogo;
+- metricas de falso negativo para desenhos validos dependem de um fixture set positivo maior;
+- Brier/log loss ficam apenas preparados conceitualmente ate existir modelo probabilistico calibrado.
+
+### Fase 15 - Assistencia, UX e modos de habilidade
+
+- [ ] Criar feedback de portas, loops e conexoes em tempo real.
+- [ ] Criar ghost overlay opcional por primitiva valida.
+- [ ] Criar modos `aprendiz` e `mestre`.
+- [ ] Snap deve respeitar gramatica, nao apenas embelezar desenho.
+- [ ] Preview pode usar eventos previstos; decisao final nao.
+
+Criterio de aceite:
+- jogador aprende por que falhou;
+- assistencia nao aceita rabisco como magia;
+- modo aprendiz reduz frustracao sem quebrar regra.
+
+### Fase 16 - Infusoes e drops
 
 - [ ] Criar `inkInfusions.ts`.
-- [ ] Implementar infusões iniciais:
+- [ ] Implementar infusoes iniciais:
   - Carmesim: dano + risco;
-  - Orvalho Lunar: cura + purificação;
-  - Cristal Azul: precisão + reflexão;
-  - Fuligem Abissal: drain + corrupção;
+  - Orvalho Lunar: cura + purificacao;
+  - Cristal Azul: precisao + reflexao;
+  - Fuligem Abissal: drain + corrupcao;
   - Pena de Vendaval: movimento/vento.
+- [ ] Aplicar infusao depois da compilacao base.
+- [ ] Impedir que item mude a identidade primaria do desenho.
 
-Critério de aceite:
-- item altera cálculo, não substitui desenho.
+Criterio de aceite:
+- item altera custo, potencia, status, risco ou afinidade;
+- reconhecimento continua sob controle;
+- infusao nao substitui desenho correto.
 
-### Fase 12 — Online futuro
+### Fase 17 - Online futuro
 
 - [ ] Separar motor puro de UI.
-- [ ] Garantir serialização de `SpellGraph` e `SpellCard`.
+- [ ] Garantir serializacao de `SpellGraph` e `SpellCard`.
 - [ ] Criar `CastCommand`.
-- [ ] Planejar validação autoritativa no servidor.
+- [ ] Planejar validacao autoritativa no servidor.
+- [ ] Cliente envia raw strokes e metadados; servidor recompila e resolve.
+- [ ] Resultado retorna com replay e objeto canonico.
+
+Criterio de aceite:
+- mesmo input gera mesmo resultado;
+- regra nao depende de estado visual do React;
+- arquitetura nao bloqueia PvP autoritativo.
+
+### Fase 18 - Arena RPG/puzzle futura
+
+- [ ] Reusar `SpellCompiler` fora do duelo.
+- [ ] Criar contexto de ambiente: barreiras, fogo, agua, vento, veneno, rotas e objetos.
+- [ ] Mapear SpellCard para efeitos ambientais.
+- [ ] Permitir puzzles com a mesma gramatica de glifos.
+
+Criterio de aceite:
+- arena nao cria segundo sistema de magia;
+- desenhos validos do TCG continuam validos no ambiente quando fizer sentido;
+- falhas continuam diegeticas.
 
 ---
 
-## 9. Próximo prompt recomendado para Codex
+## 9. Proximo prompt recomendado para Codex
 
 ```txt
 Leia brain.md inteiro antes de alterar arquivos.
 
-Tarefa: implementar Fase 1.
+Tarefa: implementar Fase 11.
 
-Objetivo: importar o catálogo seed de glifos para o projeto React + TypeScript.
+Objetivo: adicionar resolucao diegetica de falhas como camada pura e explicavel.
 
 Requisitos:
-- criar src/types/glyphTemplates.ts;
-- criar src/data/glyphTemplates.seed.json;
-- criar src/data/glyphTemplates.ts com helpers getGlyphById, getGlyphsByFamily, getGlyphsByRole;
-- não refatorar App.tsx ainda;
+- criar src/lib/recognizer/failureResolver.ts;
+- mapear falhas fizzle, miscast, leak, backfire, wrong_target, unknown e overload;
+- combinar erro geometrico, topologia, ambiguidade, dinamica e tinta;
+- permitir backfire causar dano ao jogador em etapa futura;
+- feedback deve apontar causa tecnica em linguagem diegetica;
+- nao refatorar App.tsx ainda;
 - garantir npm run build;
-- ao final explicar arquivos alterados e próximos passos.
+- ao final explicar arquivos alterados e proximos passos.
 ```
 
 ---
 
 ## 10. Definition of Done
 
-Uma task só está pronta se:
+Uma task so esta pronta se:
 
 - `npm run build` passa;
 - TypeScript passa;
 - app ainda abre;
-- mudança é modular;
-- reconhecimento não ficou mais permissivo sem justificativa;
-- erros dão feedback claro;
-- lógica pura pode ser testada fora da UI.
+- mudanca e modular;
+- reconhecimento nao ficou mais permissivo sem justificativa;
+- erros dao feedback claro;
+- logica pura pode ser testada fora da UI;
+- rabiscos continuam recusaveis;
+- decisoes importantes podem ser auditadas por debug/telemetria.
 
 ---
 
 ## 11. Filosofia final
 
-A carta é o resultado do desenho.  
-A tinta é recurso e matéria física.  
+A carta e o resultado do desenho.  
+A tinta e recurso e materia fisica.  
 O parser precisa saber recusar.  
-A IA deve desenhar também.  
+A IA deve desenhar tambem.  
 O mesmo desenho deve gerar o mesmo `spellHash`.  
-Desenho melhor melhora potência, custo, estabilidade ou precisão.  
-Desenho errado causa falha compreensível.
+Desenho melhor melhora potencia, custo, estabilidade ou precisao.  
+Desenho errado causa falha compreensivel.  
+O sistema deve parecer magico porque e coerente, nao porque aceita qualquer coisa.

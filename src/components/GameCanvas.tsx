@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { Suspense, lazy, useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import type { Point, DrawingStroke, GlyphComponent, PrecisionBreakdown } from '@/types/magic';
 import { analyzeGlyphFromStrokes, analyzeStroke, closeStrokeIfNear, getClosureDistance } from '@/lib/magicSystem';
 
@@ -7,17 +7,34 @@ interface GameCanvasProps {
   isDrawingEnabled: boolean;
   glowColor: string;
   elementName: string;
+  inkAvailable: number;
+  onInkDrag: (distance: number) => number;
 }
 
 const CANVAS_SIZE = 520;
 const CENTER = { x: CANVAS_SIZE / 2, y: CANVAS_SIZE / 2 };
 const IDEAL_RADIUS = 160;
+const MIN_DRAW_INK = 0.03;
+const GlyphDebugPanel = lazy(() =>
+  import('@/components/GlyphDebugPanel').then((module) => ({
+    default: module.GlyphDebugPanel,
+  })),
+);
+
+const isGlyphDebugEnabled = () => {
+  if (typeof window === 'undefined') return false;
+
+  const params = new URLSearchParams(window.location.search);
+  return params.get('glyphDebug') === '1' || window.localStorage.getItem('glyphDebug') === '1';
+};
 
 export function GameCanvas({
   onGlyphComplete,
   isDrawingEnabled,
   glowColor,
   elementName,
+  inkAvailable,
+  onInkDrag,
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [strokes, setStrokes] = useState<DrawingStroke[]>([]);
@@ -31,6 +48,19 @@ export function GameCanvas({
   const animationRef = useRef<number>(0);
   const strokesRef = useRef<DrawingStroke[]>([]);
   const finalizingRef = useRef(false);
+  const [glyphDebugEnabled] = useState(isGlyphDebugEnabled);
+  const debugStrokes = useMemo(() => {
+    if (currentStroke.length === 0) return strokes;
+
+    return [
+      ...strokes,
+      {
+        id: 'debug-current-stroke',
+        points: currentStroke,
+        timestamp: Date.now(),
+      },
+    ];
+  }, [strokes, currentStroke]);
 
   const getPos = useCallback((e: React.MouseEvent | React.TouchEvent): Point => {
     const canvas = canvasRef.current;
@@ -71,11 +101,16 @@ export function GameCanvas({
   const startStroke = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     if (!isDrawingEnabled || ringClosed || finalizingRef.current) return;
     e.preventDefault();
+    if (inkAvailable <= MIN_DRAW_INK) {
+      setFeedback('A tinta acabou. Espere o proximo turno.');
+      setFeedbackColor('#67e8f9');
+      return;
+    }
     const pos = getPos(e);
     setIsDrawing(true);
     setCurrentStroke([pos]);
     setFeedback('');
-  }, [isDrawingEnabled, ringClosed, getPos]);
+  }, [isDrawingEnabled, ringClosed, finalizingRef, inkAvailable, getPos]);
 
   const continueStroke = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     if (!isDrawing || !isDrawingEnabled || finalizingRef.current) return;
@@ -86,6 +121,21 @@ export function GameCanvas({
 
     const dist = Math.hypot(pos.x - last.x, pos.y - last.y);
     if (dist < 3) return;
+
+    const spentInk = onInkDrag(dist);
+    if (spentInk <= 0) {
+      if (currentStroke.length >= 5) {
+        const dryStroke = { id: crypto.randomUUID(), points: currentStroke, timestamp: Date.now() };
+        const nextStrokes = [...strokes, dryStroke];
+        strokesRef.current = nextStrokes;
+        setStrokes(nextStrokes);
+      }
+      setFeedback('A tinta secou no meio do traco.');
+      setFeedbackColor('#67e8f9');
+      setIsDrawing(false);
+      setCurrentStroke([]);
+      return;
+    }
 
     const newStroke = [...currentStroke, pos];
     setCurrentStroke(newStroke);
@@ -106,7 +156,7 @@ export function GameCanvas({
         setFeedbackColor('#ffcc66');
       }
     }
-  }, [isDrawing, isDrawingEnabled, currentStroke, getPos]);
+  }, [isDrawing, isDrawingEnabled, currentStroke, strokes, getPos, onInkDrag]);
 
   const endStroke = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     if (!isDrawing) return;
@@ -344,6 +394,12 @@ export function GameCanvas({
         <div className="absolute top-3 left-3 px-2 py-1 rounded-lg text-xs bg-black/60 text-amber-300 border border-amber-800/50">
           {elementName}
         </div>
+      )}
+
+      {glyphDebugEnabled && (
+        <Suspense fallback={null}>
+          <GlyphDebugPanel strokes={debugStrokes} />
+        </Suspense>
       )}
     </div>
   );

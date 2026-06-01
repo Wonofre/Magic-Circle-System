@@ -1,5 +1,7 @@
 import type { SigilType, SignType, Spell, SpellEffect, Entity, StatusEffect } from '@/types/magic';
+import type { InkCostBreakdown } from '@/types/ink';
 import { SIGILS, SIGNS } from './magicSystem';
+import { calculateLegacySpellInkCost, DEFAULT_ENEMY_INK, simulateInkSpend } from './spell/inkSimulator';
 
 // ============================================
 // ELEMENTAL INTERACTIONS
@@ -449,6 +451,11 @@ export interface CastResult {
   isSuccess: boolean;
   feedback: string;
   elementalMultiplier: number;
+  inkCost: number;
+  inkRemaining?: number;
+  inkOverloadChance?: number;
+  inkFailure?: string;
+  inkCostBreakdown?: InkCostBreakdown;
   primarySigil?: SigilType;
 }
 
@@ -456,7 +463,8 @@ export function castSpell(
   sigils: SigilType[],
   signs: SignType[],
   precision: number,
-  target: Entity
+  target: Entity,
+  caster?: Entity
 ): CastResult {
   if (sigils.length === 0) {
     return {
@@ -467,6 +475,45 @@ export function castSpell(
       isSuccess: false,
       feedback: 'O glifo precisa de um sigilo elementar no centro.',
       elementalMultiplier: 0,
+      inkCost: 0,
+    };
+  }
+
+  const inkCostBreakdown = calculateLegacySpellInkCost({ sigils, signs, precision });
+  const inkSimulation = caster
+    ? simulateInkSpend(
+        {
+          ink: caster.ink,
+          maxInk: caster.maxInk,
+          inkRegenPerTurn: caster.inkRegenPerTurn,
+          inkPurity: caster.inkPurity,
+          inkViscosity: caster.inkViscosity,
+          inkVolatility: caster.inkVolatility,
+          inkAffinity: caster.inkAffinity,
+          activeInfusionIds: caster.activeInfusionIds,
+        },
+        inkCostBreakdown,
+      )
+    : undefined;
+
+  if (inkSimulation && !inkSimulation.ok) {
+    return {
+      spellName: 'Tinta Insuficiente',
+      description: `A magia exigia ${inkSimulation.cost} de tinta, mas o reservatorio tinha ${caster?.ink ?? 0}.`,
+      damage: 0,
+      healing: 0,
+      shield: 0,
+      effects: [],
+      accuracy: 0,
+      precision,
+      isSuccess: false,
+      feedback: 'A tinta rarefez antes de completar o circuito.',
+      elementalMultiplier: 0,
+      inkCost: 0,
+      inkRemaining: caster?.ink,
+      inkOverloadChance: inkSimulation.overloadChance,
+      inkFailure: inkSimulation.message,
+      inkCostBreakdown,
     };
   }
 
@@ -551,6 +598,10 @@ export function castSpell(
     isSuccess: precision >= 35,
     feedback,
     elementalMultiplier: effects.length > 0 ? getWeaknessMultiplier(effects[0].element, target.weakness) : 1,
+    inkCost: inkCostBreakdown.total,
+    inkRemaining: inkSimulation?.remainingInk,
+    inkOverloadChance: inkSimulation?.overloadChance,
+    inkCostBreakdown,
     primarySigil: sigils[0],
   };
 }
@@ -678,6 +729,14 @@ export function generateEnemy(round: number): Entity {
     hp: Math.round(template.hp * scaleFactor),
     maxHp: Math.round(template.hp * scaleFactor),
     shield: 0,
+    ink: DEFAULT_ENEMY_INK.ink,
+    maxInk: DEFAULT_ENEMY_INK.maxInk + Math.floor((round - 1) / 3),
+    inkRegenPerTurn: DEFAULT_ENEMY_INK.inkRegenPerTurn,
+    inkPurity: DEFAULT_ENEMY_INK.inkPurity,
+    inkViscosity: DEFAULT_ENEMY_INK.inkViscosity,
+    inkVolatility: DEFAULT_ENEMY_INK.inkVolatility,
+    inkAffinity: template.element,
+    activeInfusionIds: DEFAULT_ENEMY_INK.activeInfusionIds,
     element: template.element,
     weakness: template.weakness,
     resistance: template.resistance,
@@ -690,26 +749,59 @@ export function generateEnemy(round: number): Entity {
 // ENEMY AI
 // ============================================
 
-export function getEnemyAction(enemy: Entity): { damage: number; effect?: string } {
+export function getEnemyAction(enemy: Entity): { damage: number; effect?: string; inkCost: number; inkFailure?: string } {
   const baseDamage = 8 + Math.floor(Math.random() * 14);
   const elementalBonus = enemy.element ? 6 : 0;
+  const desperateCost = 4;
+  const specialCost = 3;
+  const basicCost = 2;
 
   if (enemy.hp < enemy.maxHp * 0.3 && Math.random() < 0.45) {
+    if (enemy.ink < desperateCost) {
+      return {
+        damage: 0,
+        effect: `${enemy.name} tenta forcar tinta demais e perde o traco.`,
+        inkCost: 0,
+        inkFailure: 'insufficient_ink',
+      };
+    }
+
     return {
       damage: Math.round(baseDamage * 1.6) + elementalBonus,
       effect: `${enemy.name} usa um ataque desesperado!`,
+      inkCost: desperateCost,
     };
   }
 
   if (Math.random() < 0.2) {
+    if (enemy.ink < specialCost) {
+      return {
+        damage: 0,
+        effect: `${enemy.name} prepara um ataque especial, mas a tinta nao fecha o fluxo.`,
+        inkCost: 0,
+        inkFailure: 'insufficient_ink',
+      };
+    }
+
     return {
       damage: Math.round(baseDamage * 1.3) + elementalBonus,
+      inkCost: specialCost,
       effect: `${enemy.name} lança um ataque especial!`,
+    };
+  }
+
+  if (enemy.ink < basicCost) {
+    return {
+      damage: 0,
+      effect: `${enemy.name} hesita enquanto a tinta se recompoe.`,
+      inkCost: 0,
+      inkFailure: 'insufficient_ink',
     };
   }
 
   return {
     damage: baseDamage + elementalBonus,
     effect: undefined,
+    inkCost: basicCost,
   };
 }

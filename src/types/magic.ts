@@ -132,6 +132,14 @@ export interface Entity {
   hp: number;
   maxHp: number;
   shield: number;
+  ink: number;
+  maxInk: number;
+  inkRegenPerTurn: number;
+  inkPurity: number;
+  inkViscosity: number;
+  inkVolatility: number;
+  inkAffinity: SigilType | null;
+  activeInfusionIds: readonly string[];
   element: SigilType | null;  // Elemental affinity
   weakness: SigilType | null; // Elemental weakness
   resistance: SigilType | null;

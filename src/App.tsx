@@ -12,10 +12,20 @@ import {
   spellMatchesPattern,
 } from '@/lib/spellEngine';
 import type { CastResult } from '@/lib/spellEngine';
+import { DEFAULT_PLAYER_INK, regenerateInk, spendInk } from '@/lib/spell/inkSimulator';
+import { chooseEnemySpellPlan, type EnemySpellPlan } from '@/lib/spell/enemySpellAI';
+import {
+  defaultGrimoireLoadout,
+  isLegacyPatternAllowedByLoadout,
+  loadCodexEntries,
+  recordLegacySpellDiscovery,
+  saveCodexEntries,
+} from '@/lib/spell/codexStore';
 import { GameCanvas } from '@/components/GameCanvas';
+import { EnemyCastPreview } from '@/components/EnemyCastPreview';
 import { SpellEffectDisplay } from '@/components/SpellEffect';
 import { PrecisionDetails } from '@/components/PrecisionDetails';
-import { GrimoirePanel } from '@/components/GrimoirePanel';
+import { CodexPanel } from '@/components/CodexPanel';
 import { GuidePanel } from '@/components/GuidePanel';
 import { PerfectGlyphPreview } from '@/components/PerfectGlyphPreview';
 import {
@@ -53,6 +63,13 @@ const elementIcons: Record<SigilType, React.ReactNode> = {
   void:    <Circle       className="w-4 h-4 text-violet-400" />,
 };
 
+const PLAYER_CAST_RESULT_DELAY_MS = 4200;
+const PLAYER_CAST_PHASE_ADVANCE_DELAY_MS = 1200;
+const ENEMY_CAST_START_DELAY_MS = 1000;
+const ENEMY_RESULT_DELAY_MS = 3200;
+const DEFEAT_RESULT_DELAY_MS = 1800;
+const INK_PER_DRAW_PIXEL = 1 / 170;
+
 export default function App() {
   const [gamePhase, setGamePhase] = useState<GamePhase>('menu');
   const [player, setPlayer] = useState<Entity>({
@@ -61,6 +78,14 @@ export default function App() {
     hp: 100,
     maxHp: 100,
     shield: 0,
+    ink: DEFAULT_PLAYER_INK.ink,
+    maxInk: DEFAULT_PLAYER_INK.maxInk,
+    inkRegenPerTurn: DEFAULT_PLAYER_INK.inkRegenPerTurn,
+    inkPurity: DEFAULT_PLAYER_INK.inkPurity,
+    inkViscosity: DEFAULT_PLAYER_INK.inkViscosity,
+    inkVolatility: DEFAULT_PLAYER_INK.inkVolatility,
+    inkAffinity: DEFAULT_PLAYER_INK.inkAffinity,
+    activeInfusionIds: DEFAULT_PLAYER_INK.activeInfusionIds,
     element: null,
     weakness: null,
     resistance: null,
@@ -73,6 +98,14 @@ export default function App() {
     hp: 55,
     maxHp: 55,
     shield: 0,
+    ink: 9,
+    maxInk: 9,
+    inkRegenPerTurn: 2,
+    inkPurity: 0.9,
+    inkViscosity: 0.55,
+    inkVolatility: 0.18,
+    inkAffinity: null,
+    activeInfusionIds: [],
     element: null,
     weakness: 'light',
     resistance: 'earth',
@@ -84,13 +117,16 @@ export default function App() {
   const [currentComponents, setCurrentComponents] = useState<GlyphComponent[]>([]);
   const [currentPrecision, setCurrentPrecision] = useState<PrecisionBreakdown | null>(null);
   const [castResult, setCastResult] = useState<CastResult | null>(null);
-  const [spells, setSpells] = useState([...PREDEFINED_SPELLS]);
+  const [, setSpells] = useState([...PREDEFINED_SPELLS]);
+  const [codexEntries, setCodexEntries] = useState(loadCodexEntries);
   const [showGrimoire, setShowGrimoire] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [combo, setCombo] = useState(0);
   const [score, setScore] = useState(0);
   const [round, setRound] = useState(1);
   const [enemyAction, setEnemyAction] = useState<string>('');
+  const [enemyCastPlan, setEnemyCastPlan] = useState<EnemySpellPlan | null>(null);
+  const [drawingInkSpent, setDrawingInkSpent] = useState(0);
   const [logMessages, setLogMessages] = useState<string[]>([]);
   const [detectedSigils, setDetectedSigils] = useState<SigilType[]>([]);
   const [detectedSigns, setDetectedSigns] = useState<SignType[]>([]);
@@ -99,10 +135,16 @@ export default function App() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const canvasResetRef = useRef(false);
   const appliedCastRef = useRef<CastResult | null>(null);
+  const drawingInkSpentRef = useRef(0);
+  const playerInkRef = useRef(player.ink);
 
   const addLog = useCallback((msg: string) => {
     setLogMessages(prev => [msg, ...prev].slice(0, 20));
   }, []);
+
+  useEffect(() => {
+    saveCodexEntries(codexEntries);
+  }, [codexEntries]);
 
   const resetCanvas = useCallback(() => {
     if ((window as unknown as Record<string, unknown>).__resetCanvas) {
@@ -116,14 +158,21 @@ export default function App() {
     return finalize ? finalize() : false;
   }, []);
 
+  useEffect(() => {
+    playerInkRef.current = player.ink;
+  }, [player.ink]);
+
   const startGame = useCallback(() => {
     setGamePhase('drawing');
-    setPlayer(p => ({ ...p, hp: p.maxHp, shield: 0 }));
+    setPlayer(p => ({ ...p, hp: p.maxHp, shield: 0, ink: p.maxInk }));
     setEnemy(generateEnemy(1));
     setTurn(1);
     setCombo(0);
     setScore(0);
     setRound(1);
+    setEnemyCastPlan(null);
+    drawingInkSpentRef.current = 0;
+    setDrawingInkSpent(0);
     setTimeRemaining(45);
     setCurrentComponents([]);
     setCurrentPrecision(null);
@@ -149,6 +198,7 @@ export default function App() {
         isSuccess: false,
         feedback: 'O tempo acabou antes que você pudesse desenhar.',
         elementalMultiplier: 0,
+        inkCost: 0,
       });
       setGamePhase('casting');
       return;
@@ -165,6 +215,7 @@ export default function App() {
         isSuccess: false,
         feedback: 'A magia precisa de um anel fechado para ativar.',
         elementalMultiplier: 0,
+        inkCost: 0,
       });
       setGamePhase('casting');
       return;
@@ -178,10 +229,48 @@ export default function App() {
       .map(c => c.signType!);
 
     const precision = precisionOverride?.overall || 50;
-    const result = castSpell(sigils, signs, precision, enemy);
+
+    if (!isLegacyPatternAllowedByLoadout(sigils, signs, defaultGrimoireLoadout)) {
+      setCastResult({
+        spellName: 'Loadout Incompleto',
+        description: 'O grimorio atual nao contem todos os glifos deste desenho.',
+        damage: 0, healing: 0, shield: 0,
+        effects: [], accuracy: 0,
+        precision,
+        isSuccess: false,
+        feedback: 'O Codex recusou a formula: ha glifos fora do loadout do duelo.',
+        elementalMultiplier: 0,
+        inkCost: 0,
+      });
+      setGamePhase('casting');
+      return;
+    }
+
+    const casterBeforeDrawing = {
+      ...player,
+      ink: Math.min(player.maxInk, player.ink + drawingInkSpentRef.current),
+    };
+    const result = castSpell(sigils, signs, precision, enemy, casterBeforeDrawing);
     setCastResult(result);
     setGamePhase('casting');
-  }, [currentComponents, currentPrecision, enemy]);
+  }, [currentComponents, currentPrecision, enemy, player]);
+
+  const handleInkDrag = useCallback((distance: number) => {
+    const requestedInk = distance * INK_PER_DRAW_PIXEL;
+    const spent = Math.min(playerInkRef.current, requestedInk);
+
+    if (spent <= 0) return 0;
+
+    playerInkRef.current = Number(Math.max(0, playerInkRef.current - spent).toFixed(2));
+    drawingInkSpentRef.current += spent;
+    setDrawingInkSpent(drawingInkSpentRef.current);
+    setPlayer(current => ({
+      ...current,
+      ink: Number(Math.max(0, current.ink - spent).toFixed(2)),
+    }));
+
+    return spent;
+  }, []);
 
   // Timer
   useEffect(() => {
@@ -232,6 +321,12 @@ export default function App() {
     appliedCastRef.current = castResult;
 
     const timeout = setTimeout(() => {
+      const remainingInkCost = Math.max(0, castResult.inkCost - drawingInkSpentRef.current);
+
+      if (remainingInkCost > 0) {
+        setPlayer(p => spendInk(p, remainingInkCost));
+      }
+
       if (castResult.isSuccess) {
         const actualDamage = castResult.damage;
         const shieldAbsorb = Math.min(actualDamage, enemy.shield);
@@ -270,16 +365,26 @@ export default function App() {
           if (!spellWasKnown && detectedSigils.length > 0) {
             const discoveredSpell = buildProceduralSpell(detectedSigils, detectedSigns, true, castResult.precision);
             addLog(formatDiscoveryMessage(discoveredSpell, castResult.precision));
+            setCodexEntries(entries =>
+              recordLegacySpellDiscovery(entries, discoveredSpell, castResult.precision, castResult.inkCost),
+            );
             updated.unshift(discoveredSpell);
+          } else {
+            const discovered = updated.find(spell => spellMatchesPattern(spell, spellSigils, spellSigns));
+            if (discovered) {
+            setCodexEntries(entries =>
+              recordLegacySpellDiscovery(entries, discovered, castResult.precision, castResult.inkCost),
+            );
+            }
           }
 
           return updated;
         });
 
-        addLog(`Você lançou ${castResult.spellName} causando ${actualDamage} de dano!`);
+        addLog(`Você lançou ${castResult.spellName} causando ${actualDamage} de dano. Tinta: -${castResult.inkCost}.`);
       } else {
         setCombo(0);
-        addLog(`A magia falhou... ${castResult.feedback}`);
+        addLog(`A magia falhou... ${castResult.feedback}${castResult.inkFailure ? ` ${castResult.inkFailure}` : ''}`);
       }
 
       setTimeout(() => {
@@ -293,8 +398,8 @@ export default function App() {
             return e;
           }
         });
-      }, 500);
-    }, 2800);
+      }, PLAYER_CAST_PHASE_ADVANCE_DELAY_MS);
+    }, PLAYER_CAST_RESULT_DELAY_MS);
 
     return () => clearTimeout(timeout);
   }, [gamePhase, castResult, enemy.hp, enemy.shield, combo, detectedSigils, detectedSigns, addLog]);
@@ -304,9 +409,15 @@ export default function App() {
     if (gamePhase !== 'enemy_turn') return;
 
     const timeout = setTimeout(() => {
+      const plan = chooseEnemySpellPlan(enemy, player, { turn });
       const action = getEnemyAction(enemy);
-      setEnemyAction(action.effect || `${enemy.name} ataca!`);
+      setEnemyCastPlan(plan);
+      setEnemyAction(action.effect || plan.effectText);
+      addLog(`${plan.spellName}: ${plan.effectText}`);
       if (action.effect) addLog(action.effect);
+      if (action.inkCost > 0) {
+        setEnemy(e => spendInk(e, action.inkCost));
+      }
 
       const damage = action.damage;
 
@@ -319,32 +430,40 @@ export default function App() {
           setTimeout(() => {
             setGamePhase('defeat');
             addLog('Você foi derrotada...');
-          }, 1000);
+          }, DEFEAT_RESULT_DELAY_MS);
         } else {
           addLog(`${enemy.name} causou ${hpDamage} de dano!`);
           setTimeout(() => {
             setTurn(t => t + 1);
             setTimeRemaining(45);
             setGamePhase('drawing');
+            setEnemyCastPlan(null);
             setCurrentComponents([]);
             setCurrentPrecision(null);
             setDetectedSigils([]);
             setDetectedSigns([]);
+            setPlayer(current => regenerateInk(current));
+            setEnemy(current => regenerateInk(current));
+            drawingInkSpentRef.current = 0;
+            setDrawingInkSpent(0);
             resetCanvas();
-          }, 1500);
+          }, ENEMY_RESULT_DELAY_MS);
         }
         return { ...p, hp: newHp, shield: Math.max(0, p.shield - shieldAbsorb) };
       });
-    }, 1000);
+    }, ENEMY_CAST_START_DELAY_MS);
 
     return () => clearTimeout(timeout);
-  }, [gamePhase, enemy, addLog, resetCanvas]);
+  }, [gamePhase, enemy, player, turn, addLog, resetCanvas]);
 
   const nextRound = useCallback(() => {
     const newRound = round + 1;
     setRound(newRound);
     setEnemy(generateEnemy(newRound));
     setGamePhase('drawing');
+    setEnemyCastPlan(null);
+    drawingInkSpentRef.current = 0;
+    setDrawingInkSpent(0);
     setCurrentComponents([]);
     setCurrentPrecision(null);
     setCastResult(null);
@@ -507,6 +626,19 @@ export default function App() {
                     style={{ width: `${(player.hp / player.maxHp) * 100}%` }}
                   />
                 </div>
+                <div className="flex items-center justify-between mt-2 mb-1">
+                  <span className="text-[10px] text-cyan-300/80 flex items-center gap-1">
+                    <Droplets className="w-3 h-3" />
+                    Tinta
+                  </span>
+                  <span className="text-[10px] text-cyan-300/70 font-mono">{player.ink.toFixed(1)}/{player.maxInk}</span>
+                </div>
+                <div className="h-2 bg-gray-900 rounded-full overflow-hidden border border-cyan-950/70">
+                  <div
+                    className="h-full bg-cyan-400 transition-all duration-500"
+                    style={{ width: `${(player.ink / player.maxInk) * 100}%` }}
+                  />
+                </div>
                 {player.shield > 0 && (
                   <div className="flex items-center gap-1 mt-1">
                     <Shield className="w-3 h-3 text-blue-400" />
@@ -528,6 +660,19 @@ export default function App() {
                   <div
                     className="h-full bg-red-600 transition-all duration-500"
                     style={{ width: `${(enemy.hp / enemy.maxHp) * 100}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between mt-2 mb-1">
+                  <span className="text-[10px] text-violet-300/80 flex items-center gap-1">
+                    <Droplets className="w-3 h-3" />
+                    Tinta
+                  </span>
+                  <span className="text-[10px] text-violet-300/70 font-mono">{enemy.ink}/{enemy.maxInk}</span>
+                </div>
+                <div className="h-2 bg-gray-900 rounded-full overflow-hidden border border-violet-950/70">
+                  <div
+                    className="h-full bg-violet-400 transition-all duration-500"
+                    style={{ width: `${(enemy.ink / enemy.maxInk) * 100}%` }}
                   />
                 </div>
                 {enemy.shield > 0 && (
@@ -561,7 +706,15 @@ export default function App() {
               isDrawingEnabled={gamePhase === 'drawing'}
               glowColor={canvasGlowColor}
               elementName={canvasElementName}
+              inkAvailable={player.ink}
+              onInkDrag={handleInkDrag}
             />
+
+            {drawingInkSpent > 0 && gamePhase === 'drawing' && (
+              <p className="mt-2 text-center text-[10px] text-cyan-300/70">
+                Tinta fluindo no desenho: -{drawingInkSpent.toFixed(1)}
+              </p>
+            )}
 
             {/* Detected components */}
             {(detectedSigils.length > 0 || detectedSigns.length > 0) && (
@@ -610,6 +763,10 @@ export default function App() {
                 <p className="text-xs text-amber-300/60 animate-pulse">Magia sendo lançada...</p>
               )}
             </div>
+
+            {gamePhase === 'enemy_turn' && (
+              <EnemyCastPreview plan={enemyCastPlan} />
+            )}
 
             {/* Battle Log */}
             <div className="mt-4 bg-black/30 border border-amber-900/20 rounded-xl p-3 max-h-32 overflow-y-auto">
@@ -690,7 +847,13 @@ export default function App() {
       )}
 
       {/* Overlays */}
-      {showGrimoire && <GrimoirePanel spells={spells} onClose={() => setShowGrimoire(false)} />}
+      {showGrimoire && (
+        <CodexPanel
+          entries={codexEntries}
+          loadout={defaultGrimoireLoadout}
+          onClose={() => setShowGrimoire(false)}
+        />
+      )}
       {showGuide && <GuidePanel onClose={() => setShowGuide(false)} />}
     </div>
   );
