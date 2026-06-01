@@ -1,9 +1,9 @@
 import { Suspense, lazy, useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import type { Point, DrawingStroke, GlyphComponent, PrecisionBreakdown } from '@/types/magic';
-import { analyzeGlyphFromStrokes, analyzeStroke, closeStrokeIfNear, getClosureDistance } from '@/lib/magicSystem';
+import { analyzeGlyphFromStrokes, analyzeRingQuality, analyzeStroke, closeStrokeIfNear, getClosureDistance } from '@/lib/magicSystem';
 
 interface GameCanvasProps {
-  onGlyphComplete: (components: GlyphComponent[], precision: PrecisionBreakdown) => void;
+  onGlyphComplete: (components: GlyphComponent[], precision: PrecisionBreakdown, strokes: DrawingStroke[]) => void;
   isDrawingEnabled: boolean;
   glowColor: string;
   elementName: string;
@@ -15,6 +15,7 @@ const CANVAS_SIZE = 520;
 const CENTER = { x: CANVAS_SIZE / 2, y: CANVAS_SIZE / 2 };
 const IDEAL_RADIUS = 160;
 const MIN_DRAW_INK = 0.03;
+const QUILL_CURSOR = 'url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2732%27 height=%2732%27 viewBox=%270 0 32 32%27%3E%3Cpath d=%27M5 29 L9 19 C12 10 19 4 28 2 C26 11 21 19 12 23 L5 29 Z%27 fill=%27%23f8e7b0%27 stroke=%27%235a3716%27 stroke-width=%271.4%27 stroke-linejoin=%27round%27/%3E%3Cpath d=%27M8 25 C13 19 18 12 25 5%27 fill=%27none%27 stroke=%27%235a3716%27 stroke-width=%271.2%27 stroke-linecap=%27round%27/%3E%3Cpath d=%27M5 29 L8 26 L10 28 Z%27 fill=%27%23221814%27/%3E%3C/svg%3E") 5 29, auto';
 const GlyphDebugPanel = lazy(() =>
   import('@/components/GlyphDebugPanel').then((module) => ({
     default: module.GlyphDebugPanel,
@@ -48,6 +49,7 @@ export function GameCanvas({
   const animationRef = useRef<number>(0);
   const strokesRef = useRef<DrawingStroke[]>([]);
   const finalizingRef = useRef(false);
+  const activePointerIdRef = useRef<number | null>(null);
   const [glyphDebugEnabled] = useState(isGlyphDebugEnabled);
   const debugStrokes = useMemo(() => {
     if (currentStroke.length === 0) return strokes;
@@ -62,18 +64,38 @@ export function GameCanvas({
     ];
   }, [strokes, currentStroke]);
 
-  const getPos = useCallback((e: React.MouseEvent | React.TouchEvent): Point => {
+  const getPointerPoint = useCallback((event: PointerEvent | React.PointerEvent<HTMLCanvasElement>): Point => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
     const scale = CANVAS_SIZE / rect.width;
-    const clientX = 'touches' in e ? e.touches[0]?.clientX ?? e.changedTouches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0]?.clientY ?? e.changedTouches[0].clientY : e.clientY;
+    const pressure = event.pressure > 0 ? event.pressure : undefined;
+    const extendedEvent = event as PointerEvent & {
+      altitudeAngle?: number;
+      azimuthAngle?: number;
+    };
     return {
-      x: (clientX - rect.left) * scale,
-      y: (clientY - rect.top) * scale,
+      x: (event.clientX - rect.left) * scale,
+      y: (event.clientY - rect.top) * scale,
+      t: event.timeStamp,
+      pressure,
+      tangentialPressure: event.tangentialPressure,
+      tiltX: event.tiltX,
+      tiltY: event.tiltY,
+      twist: event.twist,
+      altitudeAngle: extendedEvent.altitudeAngle,
+      azimuthAngle: extendedEvent.azimuthAngle,
+      pointerType: event.pointerType,
     };
   }, []);
+
+  const getCoalescedPointerPoints = useCallback((e: React.PointerEvent<HTMLCanvasElement>): Point[] => {
+    const nativeEvent = e.nativeEvent;
+    const events = typeof nativeEvent.getCoalescedEvents === 'function'
+      ? nativeEvent.getCoalescedEvents()
+      : [nativeEvent];
+    return events.map(getPointerPoint);
+  }, [getPointerPoint]);
 
   useEffect(() => {
     strokesRef.current = strokes;
@@ -92,13 +114,13 @@ export function GameCanvas({
     setFeedbackColor(hasRing ? '#88ff88' : '#ffcc66');
 
     setTimeout(() => {
-      onGlyphComplete(finalComponents, precision);
+      onGlyphComplete(finalComponents, precision, sourceStrokes);
     }, 350);
 
     return true;
   }, [onGlyphComplete]);
 
-  const startStroke = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+  const startStroke = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawingEnabled || ringClosed || finalizingRef.current) return;
     e.preventDefault();
     if (inkAvailable <= MIN_DRAW_INK) {
@@ -106,26 +128,46 @@ export function GameCanvas({
       setFeedbackColor('#67e8f9');
       return;
     }
-    const pos = getPos(e);
+    activePointerIdRef.current = e.pointerId;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const pos = getPointerPoint(e);
     setIsDrawing(true);
     setCurrentStroke([pos]);
     setFeedback('');
-  }, [isDrawingEnabled, ringClosed, finalizingRef, inkAvailable, getPos]);
+  }, [isDrawingEnabled, ringClosed, inkAvailable, getPointerPoint]);
 
-  const continueStroke = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+  const continueStroke = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawing || !isDrawingEnabled || finalizingRef.current) return;
+    if (activePointerIdRef.current !== null && e.pointerId !== activePointerIdRef.current) return;
     e.preventDefault();
-    const pos = getPos(e);
-    const last = currentStroke[currentStroke.length - 1];
-    if (!last) return;
+    const points = getCoalescedPointerPoints(e);
+    let nextStroke = currentStroke;
+    let ranDry = false;
 
-    const dist = Math.hypot(pos.x - last.x, pos.y - last.y);
-    if (dist < 3) return;
+    for (const pos of points) {
+      const last = nextStroke[nextStroke.length - 1];
+      if (!last) continue;
 
-    const spentInk = onInkDrag(dist);
-    if (spentInk <= 0) {
-      if (currentStroke.length >= 5) {
-        const dryStroke = { id: crypto.randomUUID(), points: currentStroke, timestamp: Date.now() };
+      const dist = Math.hypot(pos.x - last.x, pos.y - last.y);
+      if (dist < 3) continue;
+
+      const spentInk = onInkDrag(dist);
+      if (spentInk <= 0) {
+        ranDry = true;
+        break;
+      }
+
+      nextStroke = [...nextStroke, pos];
+    }
+
+    if (ranDry) {
+      if (nextStroke.length >= 5) {
+        const dryStroke = {
+          id: crypto.randomUUID(),
+          points: nextStroke,
+          timestamp: Date.now(),
+          rawClosureDistance: getClosureDistance(nextStroke),
+        };
         const nextStrokes = [...strokes, dryStroke];
         strokesRef.current = nextStrokes;
         setStrokes(nextStrokes);
@@ -137,16 +179,16 @@ export function GameCanvas({
       return;
     }
 
-    const newStroke = [...currentStroke, pos];
-    setCurrentStroke(newStroke);
+    if (nextStroke === currentStroke) return;
+    setCurrentStroke(nextStroke);
 
-    if (newStroke.length > 30) {
-      const closeDist = getClosureDistance(newStroke);
-      const progress = Math.max(0, 100 - closeDist * 2);
-      setClosureProgress(Math.min(100, progress));
+    if (nextStroke.length > 30) {
+      const quality = analyzeRingQuality(nextStroke, CENTER);
+      const closeDist = quality.closureDistance;
+      setClosureProgress(Math.round(quality.precision));
 
-      if (closeDist < 18) {
-        const analysis = analyzeStroke(closeStrokeIfNear(newStroke, 35), CENTER);
+      if (quality.isPlausibleRing) {
+        const analysis = analyzeStroke(closeStrokeIfNear(nextStroke, 35), CENTER);
         if (analysis.isRing) {
           setFeedback('Solte para fechar e revelar.');
           setFeedbackColor('#88ff88');
@@ -156,11 +198,16 @@ export function GameCanvas({
         setFeedbackColor('#ffcc66');
       }
     }
-  }, [isDrawing, isDrawingEnabled, currentStroke, strokes, getPos, onInkDrag]);
+  }, [isDrawing, isDrawingEnabled, currentStroke, strokes, getCoalescedPointerPoints, onInkDrag]);
 
-  const endStroke = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+  const endStroke = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawing) return;
+    if (activePointerIdRef.current !== null && e.pointerId !== activePointerIdRef.current) return;
     e.preventDefault();
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    activePointerIdRef.current = null;
     setIsDrawing(false);
     setClosureProgress(0);
 
@@ -169,8 +216,9 @@ export function GameCanvas({
       return;
     }
 
+    const rawClosureDistance = getClosureDistance(currentStroke);
     const closedStroke = closeStrokeIfNear(currentStroke, 28);
-    const nextStrokes = [...strokes, { id: crypto.randomUUID(), points: closedStroke, timestamp: Date.now() }];
+    const nextStrokes = [...strokes, { id: crypto.randomUUID(), points: currentStroke, timestamp: Date.now(), rawClosureDistance }];
     strokesRef.current = nextStrokes;
     setStrokes(nextStrokes);
 
@@ -191,6 +239,7 @@ export function GameCanvas({
     setRingClosed(false);
     setFeedback('');
     setClosureProgress(0);
+    activePointerIdRef.current = null;
     finalizingRef.current = false;
   }, []);
 
@@ -287,11 +336,6 @@ export function GameCanvas({
         ctx.stroke();
         ctx.shadowBlur = 0;
 
-        ctx.beginPath();
-        ctx.arc(currentStroke[0].x, currentStroke[0].y, 5, 0, Math.PI * 2);
-        ctx.fillStyle = strokeColor;
-        ctx.fill();
-
         if (closeDist < 60) {
           const first = currentStroke[0];
           const last = currentStroke[currentStroke.length - 1];
@@ -360,21 +404,19 @@ export function GameCanvas({
         ref={canvasRef}
         width={CANVAS_SIZE}
         height={CANVAS_SIZE}
-        className={`w-full rounded-2xl border-2 cursor-crosshair transition-all duration-300 ${
+        className={`w-full rounded-2xl border-2 transition-all duration-300 ${
           ringClosed
             ? 'border-amber-400 shadow-[0_0_40px_rgba(243,215,121,0.4)]'
             : isDrawingEnabled
             ? 'border-amber-900/60 shadow-[0_0_20px_rgba(0,0,0,0.5)] hover:border-amber-700/80'
             : 'border-gray-800 opacity-70'
         }`}
-        style={{ aspectRatio: '1' }}
-        onMouseDown={startStroke}
-        onMouseMove={continueStroke}
-        onMouseUp={endStroke}
-        onMouseLeave={endStroke}
-        onTouchStart={startStroke}
-        onTouchMove={continueStroke}
-        onTouchEnd={endStroke}
+        style={{ aspectRatio: '1', touchAction: 'none', cursor: QUILL_CURSOR }}
+        onPointerDown={startStroke}
+        onPointerMove={continueStroke}
+        onPointerUp={endStroke}
+        onPointerCancel={endStroke}
+        onPointerLeave={endStroke}
       />
 
       {feedback && (

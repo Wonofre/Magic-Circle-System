@@ -1,5 +1,9 @@
 import { X, Circle, Hexagon, Key, Sparkles } from 'lucide-react';
-import { SIGILS, SIGNS } from '@/lib/magicSystem';
+import { ACTIVE_SIGIL_TYPES, ACTIVE_SIGN_TYPES, SIGILS, SIGNS } from '@/lib/magicSystem';
+import { getGlyphById } from '@/data/glyphTemplates';
+import { defaultGrimoireLoadout } from '@/lib/spell/codexStore';
+import { fallbackSpellRecipe, spellRecipes } from '@/data/spellRecipes';
+import type { GlyphSemanticRole, GlyphTemplate } from '@/types/glyphTemplates';
 import type { SigilType, SignType } from '@/types/magic';
 import { PerfectGlyphPreview } from '@/components/PerfectGlyphPreview';
 import { useState } from 'react';
@@ -21,14 +25,97 @@ const sigilColors: Record<SigilType, string> = {
   void:    '#8866aa',
 };
 
-type Tab = 'howto' | 'sigils' | 'signs' | 'tips';
+type Tab = 'howto' | 'catalog' | 'sigils' | 'signs' | 'tips';
+
+const roleLabels: Record<GlyphSemanticRole, string> = {
+  container: 'Moldura',
+  source: 'Fonte',
+  connector: 'Canal',
+  element: 'Elemento',
+  derived: 'Derivado',
+  action: 'Acao',
+  form: 'Forma',
+  target: 'Alvo',
+  defense: 'Defesa',
+  time: 'Tempo',
+  risk: 'Risco',
+  ink: 'Tinta',
+};
+
+const glyphRoleOrder: readonly GlyphSemanticRole[] = [
+  'container',
+  'source',
+  'element',
+  'action',
+  'form',
+  'defense',
+  'target',
+  'risk',
+  'ink',
+  'connector',
+  'derived',
+  'time',
+];
+
+const getGlyphBounds = (glyph: GlyphTemplate) => {
+  const points = glyph.strokes.flat();
+  const xs = points.map(([x]) => x);
+  const ys = points.map(([, y]) => y);
+  return {
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys),
+  };
+};
+
+function GlyphTemplatePreview({ glyph, size = 58 }: { glyph: GlyphTemplate; size?: number }) {
+  const bounds = getGlyphBounds(glyph);
+  const width = Math.max(1, bounds.maxX - bounds.minX);
+  const height = Math.max(1, bounds.maxY - bounds.minY);
+  const pad = 10;
+  const scale = (size - pad * 2) / Math.max(width, height);
+  const offsetX = (size - width * scale) / 2;
+  const offsetY = (size - height * scale) / 2;
+
+  const project = ([x, y]: readonly [number, number]) =>
+    `${offsetX + (x - bounds.minX) * scale},${offsetY + (y - bounds.minY) * scale}`;
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="overflow-visible">
+      {glyph.strokes.map((stroke, index) => (
+        <polyline
+          key={`${glyph.id}-${index}`}
+          points={stroke.map(project).join(' ')}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={3.4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ))}
+    </svg>
+  );
+}
+
+const catalogGlyphs = defaultGrimoireLoadout.knownGlyphIds
+  .map((id) => getGlyphById(id))
+  .filter((glyph): glyph is GlyphTemplate => Boolean(glyph))
+  .sort((a, b) =>
+    glyphRoleOrder.indexOf(a.semantic_role) - glyphRoleOrder.indexOf(b.semantic_role) ||
+    a.display_name.localeCompare(b.display_name),
+  );
+
+const recipesInGuide = [...spellRecipes, fallbackSpellRecipe]
+  .filter((recipe) => defaultGrimoireLoadout.allowedRecipeIds.includes(recipe.id));
 
 export function GuidePanel({ onClose }: GuidePanelProps) {
-  const [tab, setTab] = useState<Tab>('sigils');
+  const [tab, setTab] = useState<Tab>('catalog');
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'howto',  label: 'Como Jogar' },
-    { id: 'sigils', label: 'Sigilos' },
+    { id: 'catalog',  label: 'Catalogo' },
+    { id: 'sigils', label: 'Legado' },
     { id: 'signs',  label: 'Chaves' },
     { id: 'tips',   label: 'Dicas' },
   ];
@@ -114,6 +201,81 @@ export function GuidePanel({ onClose }: GuidePanelProps) {
             </section>
           )}
 
+          {tab === 'catalog' && (
+            <section className="space-y-4">
+              <h3 className="text-sm font-bold text-amber-400 flex items-center gap-2">
+                <Sparkles className="w-4 h-4" /> Catalogo usado pelo jogo
+              </h3>
+              <p className="text-xs text-amber-300/70">
+                Estes símbolos e receitas básicas já estão liberados. Outros glifos precisam ser descobertos ou dominados antes de gerar magia válida.
+              </p>
+              <div className="space-y-3">
+                {glyphRoleOrder.map((role) => {
+                  const glyphs = catalogGlyphs.filter((glyph) => glyph.semantic_role === role);
+                  if (glyphs.length === 0) return null;
+
+                  return (
+                    <div key={role} className="space-y-1.5">
+                      <p className="text-[10px] uppercase tracking-wider text-amber-600">{roleLabels[role]}</p>
+                      <div className="grid grid-cols-1 gap-2">
+                        {glyphs.map((glyph) => (
+                          <div key={glyph.id} className="flex items-start gap-3 p-2.5 bg-amber-950/25 border border-amber-900/25 rounded-xl">
+                            <div className="w-16 h-16 rounded-lg bg-black/30 border border-amber-900/30 flex items-center justify-center text-amber-300 flex-shrink-0">
+                              <GlyphTemplatePreview glyph={glyph} />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 mb-0.5">
+                                <p className="text-xs font-semibold text-amber-300 truncate">{glyph.display_name}</p>
+                                <span className="text-[9px] text-amber-700 font-mono">{glyph.id}</span>
+                              </div>
+                              <p className="text-[10px] text-amber-500/80 leading-snug">{glyph.description}</p>
+                              <div className="flex flex-wrap gap-1 mt-1.5">
+                                {glyph.tags.slice(0, 4).map((tag) => (
+                                  <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded bg-black/30 text-amber-500/80">
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="p-3 bg-purple-950/25 border border-purple-900/30 rounded-xl">
+                <p className="text-xs font-bold text-purple-300 mb-2">Receitas equipadas</p>
+                <div className="space-y-2">
+                  {recipesInGuide.map((recipe) => (
+                    <div key={recipe.id} className="text-[10px] text-purple-300/80">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-purple-200">{recipe.name}</span>
+                        <span className="text-purple-500">{recipe.kind} / tinta {recipe.baseInkCost}</span>
+                      </div>
+                      <p className="text-purple-400/70">
+                        exige {recipe.requiredRoles.map((role) => roleLabels[role]).join(' + ')}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="hidden">
+                {defaultGrimoireLoadout.knownGlyphIds.map((id) => {
+                  const glyph = getGlyphById(id);
+                  return (
+                    <div key={id} className="p-2.5 bg-amber-950/25 border border-amber-900/25 rounded-xl">
+                      <p className="text-xs font-semibold text-amber-300">{glyph?.display_name ?? id}</p>
+                      <p className="text-[10px] text-amber-500/80">{glyph?.semantic_role ?? 'glifo'} - {glyph?.description ?? id}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           {/* SIGILS */}
           {tab === 'sigils' && (
             <section>
@@ -121,7 +283,9 @@ export function GuidePanel({ onClose }: GuidePanelProps) {
                 <Hexagon className="w-4 h-4" /> Sigilos — Como Desenhar
               </h3>
               <div className="space-y-2">
-                {(Object.values(SIGILS)).map(sigil => (
+                {ACTIVE_SIGIL_TYPES.map(type => {
+                  const sigil = SIGILS[type];
+                  return (
                   <div
                     key={sigil.type}
                     className="flex items-start gap-3 p-3 rounded-xl border transition-colors"
@@ -155,7 +319,8 @@ export function GuidePanel({ onClose }: GuidePanelProps) {
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </section>
           )}
@@ -167,7 +332,9 @@ export function GuidePanel({ onClose }: GuidePanelProps) {
                 <Key className="w-4 h-4" /> Chaves — Como Desenhar
               </h3>
               <div className="space-y-1.5">
-                {Object.values(SIGNS).map(sign => (
+                {ACTIVE_SIGN_TYPES.map(type => {
+                  const sign = SIGNS[type];
+                  return (
                   <div key={sign.type} className="p-2.5 bg-purple-950/20 rounded-xl border border-purple-900/25">
                     <div className="flex items-start gap-2">
                       <div className="w-14 h-14 rounded-lg bg-purple-950/30 border border-purple-800/30 flex items-center justify-center flex-shrink-0">
@@ -183,7 +350,8 @@ export function GuidePanel({ onClose }: GuidePanelProps) {
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </section>
           )}

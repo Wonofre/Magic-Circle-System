@@ -667,6 +667,39 @@ export const SIGNS: Record<SignType, SignDef> = {
   },
 };
 
+export const ACTIVE_SIGIL_TYPES = [
+  'fire',
+  'water',
+  'earth',
+  'wind',
+  'light',
+  'ice',
+  'shadow',
+  'thunder',
+  'nature',
+  'void',
+] as const satisfies readonly SigilType[];
+
+export const ACTIVE_SIGN_TYPES = [
+  'column',
+  'direction',
+  'convergence',
+  'dispersion',
+  'shield_sign',
+  'heal_sign',
+  'chain',
+  'spiral',
+] as const satisfies readonly SignType[];
+
+const ACTIVE_SIGIL_SET = new Set<SigilType>(ACTIVE_SIGIL_TYPES);
+const ACTIVE_SIGN_SET = new Set<SignType>(ACTIVE_SIGN_TYPES);
+
+const isActiveSigilType = (type: TemplateType | undefined): type is SigilType =>
+  Boolean(type && ACTIVE_SIGIL_SET.has(type as SigilType));
+
+const isActiveSignType = (type: TemplateType | undefined): type is SignType =>
+  Boolean(type && ACTIVE_SIGN_SET.has(type as SignType));
+
 // ============================================
 // GEOMETRY UTILITIES
 // ============================================
@@ -816,8 +849,104 @@ export function getClosureScore(points: Point[]): number {
   if (points.length < 2) return 0;
   const bounds = getBounds(points);
   const diagonal = Math.hypot(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
-  const tolerance = Math.max(18, Math.min(46, diagonal * 0.1));
+  const tolerance = Math.max(14, Math.min(52, diagonal * 0.13));
   return Math.max(0, 100 - (getClosureDistance(points) / tolerance) * 100);
+}
+
+export interface RingQuality {
+  readonly closureDistance: number;
+  readonly closureScore: number;
+  readonly angularCoverage: number;
+  readonly angularCoverageScore: number;
+  readonly circularityScore: number;
+  readonly centralityScore: number;
+  readonly sizeScore: number;
+  readonly ovalPenalty: number;
+  readonly precision: number;
+  readonly isPlausibleRing: boolean;
+}
+
+export function analyzeRingQuality(
+  points: Point[],
+  canvasCenter: Point,
+  rawClosureDistance = getClosureDistance(points),
+): RingQuality {
+  if (points.length < 8) {
+    return {
+      closureDistance: rawClosureDistance,
+      closureScore: 0,
+      angularCoverage: 0,
+      angularCoverageScore: 0,
+      circularityScore: 0,
+      centralityScore: 0,
+      sizeScore: 0,
+      ovalPenalty: 100,
+      precision: 0,
+      isPlausibleRing: false,
+    };
+  }
+
+  const bounds = getBounds(points);
+  const width = bounds.maxX - bounds.minX;
+  const height = bounds.maxY - bounds.minY;
+  const diameter = Math.max(width, height);
+  const radius = Math.max(1, diameter / 2);
+  const center = getCenter(bounds);
+  const closureTolerance = Math.max(14, Math.min(58, radius * 0.22));
+  const closureScore = Math.max(0, 100 - (rawClosureDistance / closureTolerance) * 100);
+  const circularityScore = calculateCircularity(points) * 100;
+  const distToCanvasCenter = Math.hypot(center.x - canvasCenter.x, center.y - canvasCenter.y);
+  const centralityScore = Math.max(0, 100 - (distToCanvasCenter / Math.max(80, radius * 0.62)) * 100);
+  const sizeScore = Math.max(0, Math.min(100, ((diameter - RING_MIN_DIAMETER) / 90) * 100));
+  const aspect = Math.min(width, height) > 0 ? Math.max(width, height) / Math.min(width, height) : 99;
+  const ovalPenalty = Math.max(0, Math.min(100, (aspect - 1.18) * 135));
+  const angles = points.map((point) => Math.atan2(point.y - center.y, point.x - center.x));
+  const sortedAngles = [...angles].sort((a, b) => a - b);
+  let maxGap = Math.PI * 2;
+
+  if (sortedAngles.length > 1) {
+    maxGap = 0;
+    for (let index = 0; index < sortedAngles.length; index += 1) {
+      const next = (index + 1) % sortedAngles.length;
+      let gap = sortedAngles[next] - sortedAngles[index];
+      if (gap < 0) gap += Math.PI * 2;
+      if (gap > maxGap) maxGap = gap;
+    }
+  }
+
+  const angularCoverage = Math.max(0, Math.min(1, 1 - maxGap / (Math.PI * 2)));
+  const angularCoverageScore = angularCoverage * 100;
+  const precision = Math.max(
+    0,
+    Math.min(
+      100,
+      circularityScore * 0.34 +
+        closureScore * 0.28 +
+        angularCoverageScore * 0.2 +
+        centralityScore * 0.12 +
+        sizeScore * 0.06 -
+        ovalPenalty * 0.2,
+    ),
+  );
+
+  return {
+    closureDistance: rawClosureDistance,
+    closureScore,
+    angularCoverage,
+    angularCoverageScore,
+    circularityScore,
+    centralityScore,
+    sizeScore,
+    ovalPenalty,
+    precision,
+    isPlausibleRing:
+      diameter >= RING_MIN_DIAMETER &&
+      closureScore > 45 &&
+      angularCoverage > 0.76 &&
+      circularityScore > 35 &&
+      centralityScore > 18 &&
+      ovalPenalty < 58,
+  };
 }
 
 export function closeStrokeIfNear(points: Point[], maxDistance = 40): Point[] {
@@ -1517,6 +1646,14 @@ function analyzeRing(points: Point[], canvasCenter: Point, bounds: Bounds): Ring
   const diameter = Math.max(w, h);
   if (diameter < RING_MIN_DIAMETER) return { isRing: false, precision: 0, symmetry: 0 };
 
+  const quality = analyzeRingQuality(points, canvasCenter);
+  const improvedSymmetry = Math.max(0, Math.min(100, (quality.circularityScore + quality.centralityScore) / 2));
+  return {
+    isRing: quality.isPlausibleRing,
+    precision: quality.precision,
+    symmetry: improvedSymmetry,
+  };
+
   // Check circularity - distances from center should be consistent
   const dists = points.map(p => Math.hypot(p.x - approxCenter.x, p.y - approxCenter.y));
   const avg = dists.reduce((a, b) => a + b) / dists.length;
@@ -1571,11 +1708,12 @@ export function calculateGlyphPrecision(
   signs: GlyphComponent[],
   canvasCenter: Point
 ): PrecisionBreakdown {
-  const circlePerfection = ring?.precision ?? 0;
+  const ringQuality = ring ? analyzeRingQuality(ring.points, canvasCenter, ring.rawClosureDistance) : null;
+  const circlePerfection = ringQuality?.precision ?? ring?.precision ?? 0;
 
   let ringClosure = 0;
   if (ring && ring.points.length > 10) {
-    ringClosure = getClosureScore(ring.points);
+    ringClosure = ringQuality?.closureScore ?? getClosureScore(ring.points);
   }
 
   const sigilPrecision = sigils.length > 0
@@ -1752,7 +1890,7 @@ function makeRadialBurst(arms: number, radius = 0.88): Point[][] {
   });
 }
 
-const RECOGNITION_TEMPLATES: RecognitionTemplate[] = [
+const RECOGNITION_TEMPLATES: RecognitionTemplate[] = ([
   { kind: 'sigil', type: 'fire', strokes: [makePolyline([pt(0, -0.9), pt(0.72, 0.72), pt(0.05, 0.45), pt(-0.72, 0.72), pt(0, -0.9)], 12)] },
   { kind: 'sigil', type: 'water', strokes: [makeSine(1.9, 0.42, 1.15, 52)] },
   { kind: 'sigil', type: 'earth', strokes: [makePolyline([pt(-0.75, -0.75), pt(0.75, -0.75), pt(0.75, 0.75), pt(-0.75, 0.75), pt(-0.75, -0.75)], 12)] },
@@ -1789,7 +1927,11 @@ const RECOGNITION_TEMPLATES: RecognitionTemplate[] = [
   { kind: 'sign', type: 'explosion', strokes: [makeStar(8, 0.96, 0.38)] },
   { kind: 'sign', type: 'spiral', strokes: [makeSpiral(2.9, 64, false)] },
   { kind: 'sign', type: 'anchor', strokes: [makeLine(pt(0, -0.9), pt(0, 0.55), 22), makeLine(pt(-0.55, -0.55), pt(0.55, -0.55), 18), makeArc(0, 0.42, 0.72, 0.44, Math.PI * 0.08, Math.PI * 0.92, 28)] },
-];
+] satisfies RecognitionTemplate[]).filter((template) =>
+  template.kind === 'sigil'
+    ? ACTIVE_SIGIL_SET.has(template.type as SigilType)
+    : ACTIVE_SIGN_SET.has(template.type as SignType),
+);
 
 export function getCanonicalSymbolStrokes(kind: TemplateKind, type: TemplateType): Point[][] {
   const template = RECOGNITION_TEMPLATES.find(entry => entry.kind === kind && entry.type === type);
@@ -2134,7 +2276,7 @@ function recognizeGroup(
   let sigilAgrees = false;
   let signAgrees = false;
 
-  if (sigilHeuristic.sigilType) {
+  if (isActiveSigilType(sigilHeuristic.sigilType)) {
     if (sigilHeuristic.sigilType === sigilType) {
       sigilAgrees = true;
       sigilScore = sigilScore * 0.72 + sigilHeuristic.precision * 0.28;
@@ -2145,7 +2287,7 @@ function recognizeGroup(
     }
   }
 
-  if (signHeuristic.signType) {
+  if (isActiveSignType(signHeuristic.signType)) {
     if (signHeuristic.signType === signType) {
       signAgrees = true;
       signScore = signScore * 0.72 + signHeuristic.precision * 0.28;
@@ -2165,11 +2307,11 @@ function recognizeGroup(
   const centralThunderOverride = isLikelyCentralThunder(features, normalizedDistance);
   const outerDirectionOverride = isLikelyOuterDirection(features, normalizedDistance);
 
-  if (centralThunderOverride) {
+  if (centralThunderOverride && ACTIVE_SIGIL_SET.has('thunder')) {
     sigilType = 'thunder';
     sigilScore = Math.max(sigilScore, 94);
   }
-  if (outerDirectionOverride) {
+  if (outerDirectionOverride && ACTIVE_SIGN_SET.has('direction')) {
     signType = 'direction';
     signScore = Math.max(signScore, 96);
   }
@@ -2184,6 +2326,8 @@ function recognizeGroup(
   const structuralOverride = (kind === 'sigil' && centralThunderOverride) || (kind === 'sign' && outerDirectionOverride);
 
   if (!type) return null;
+  if (kind === 'sigil' && !isActiveSigilType(type)) return null;
+  if (kind === 'sign' && !isActiveSignType(type)) return null;
   if (!isPlausibleRecognition(type, kind, features, distanceFromCenter, ringRadius)) return null;
   if (score < 66) return null;
   if (!structuralOverride && score - competingScore < 9) return null;
@@ -2274,23 +2418,24 @@ export function analyzeGlyphFromStrokes(
   canvasCenter: Point,
 ): { components: GlyphComponent[]; precision: PrecisionBreakdown } {
   const cleanStrokes = strokes
-    .filter(stroke => stroke.points.length >= 5)
-    .map(stroke => ({ ...stroke, points: closeStrokeIfNear(stroke.points, 42) }));
+    .filter(stroke => stroke.points.length >= 5);
 
   let ringIndex = -1;
   let ringComponent: GlyphComponent | null = null;
   let bestRingScore = 0;
 
   for (let i = 0; i < cleanStrokes.length; i++) {
-    const analysis = analyzeStroke(cleanStrokes[i].points, canvasCenter);
+    const rawClosureDistance = cleanStrokes[i].rawClosureDistance ?? getClosureDistance(cleanStrokes[i].points);
+    const analysis = analyzeStroke(closeStrokeIfNear(cleanStrokes[i].points, 42), canvasCenter);
     if (!analysis.isRing) continue;
     const diameter = Math.max(analysis.bounds.maxX - analysis.bounds.minX, analysis.bounds.maxY - analysis.bounds.minY);
     const recency = i / Math.max(1, cleanStrokes.length - 1);
-    const score = analysis.precision + diameter * 0.06 + recency * 14;
+    const quality = analyzeRingQuality(analysis.points, canvasCenter, rawClosureDistance);
+    const score = quality.precision + diameter * 0.06 + recency * 14;
     if (score > bestRingScore) {
       bestRingScore = score;
       ringIndex = i;
-      ringComponent = strokeToComponent(analysis);
+      ringComponent = { ...strokeToComponent(analysis), precision: quality.precision, rawClosureDistance };
     }
   }
 

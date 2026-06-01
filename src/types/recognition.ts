@@ -101,6 +101,7 @@ export interface TemplateMatcherOptions {
   readonly totalSamplePoints?: number;
   readonly maxMeanDistance?: number;
   readonly strokeCountPenalty?: number;
+  readonly scribbleThresholds?: Partial<ScribbleDetectorThresholds>;
 }
 
 export interface TemplateMatchCandidate {

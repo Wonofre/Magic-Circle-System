@@ -81,6 +81,7 @@ const normalizeOptions = (options: TemplateMatcherOptions = {}): Required<Templa
   totalSamplePoints: options.totalSamplePoints ?? DEFAULT_TOTAL_SAMPLE_POINTS,
   maxMeanDistance: options.maxMeanDistance ?? DEFAULT_MAX_MEAN_DISTANCE,
   strokeCountPenalty: options.strokeCountPenalty ?? DEFAULT_STROKE_COUNT_PENALTY,
+  scribbleThresholds: options.scribbleThresholds ?? {},
 });
 
 export const matchGlyphTemplates = (
@@ -88,7 +89,7 @@ export const matchGlyphTemplates = (
   options: TemplateMatcherOptions = {},
 ): TemplateMatchResult => {
   const activeOptions = normalizeOptions(options);
-  const scribble = detectScribble(strokes);
+  const scribble = detectScribble(strokes, activeOptions.scribbleThresholds);
   const normalized = normalizeStrokes(strokes);
 
   if (scribble.isRejected || normalized.strokes.length === 0) {

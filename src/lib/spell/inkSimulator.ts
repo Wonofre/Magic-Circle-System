@@ -12,9 +12,9 @@ const HIGH_RISK_SIGILS: readonly SigilType[] = ["fire", "thunder", "shadow", "vo
 const HIGH_RISK_SIGNS: readonly SignType[] = ["crush", "explosion", "convergence", "chain"];
 
 export const DEFAULT_PLAYER_INK: InkReservoir = {
-  ink: 12,
-  maxInk: 12,
-  inkRegenPerTurn: 3,
+  ink: 24,
+  maxInk: 24,
+  inkRegenPerTurn: 6,
   inkPurity: 1,
   inkViscosity: 0.5,
   inkVolatility: 0.12,

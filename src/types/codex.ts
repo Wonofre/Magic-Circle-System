@@ -24,7 +24,11 @@ export interface CodexSpellEntry {
 
 export interface GrimoireLoadout {
   readonly knownGlyphIds: readonly string[];
+  readonly discoveredGlyphIds: readonly string[];
+  readonly masteredGlyphIds: readonly string[];
+  /** @deprecated Legacy bridge only. New gameplay validates glyph template ids. */
   readonly knownLegacySigils: readonly SigilType[];
+  /** @deprecated Legacy bridge only. New gameplay validates glyph template ids. */
   readonly knownLegacySigns: readonly SignType[];
   readonly allowedRecipeIds: readonly string[];
   readonly allowedInkInfusionIds: readonly string[];

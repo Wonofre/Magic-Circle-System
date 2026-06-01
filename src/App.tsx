@@ -1,26 +1,32 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import type { GlyphComponent, PrecisionBreakdown, GamePhase, Entity } from '@/types/magic';
+import type { DrawingStroke, GlyphComponent, PrecisionBreakdown, GamePhase, Entity, SpellEffect } from '@/types/magic';
 import type { SigilType, SignType } from '@/types/magic';
-import { SIGILS, SIGNS } from '@/lib/magicSystem';
+import { ACTIVE_SIGIL_TYPES, SIGILS, SIGNS } from '@/lib/magicSystem';
 import {
-  buildProceduralSpell,
-  castSpell,
-  formatDiscoveryMessage,
+  getWeaknessMultiplier,
   generateEnemy,
-  getEnemyAction,
-  PREDEFINED_SPELLS,
-  spellMatchesPattern,
 } from '@/lib/spellEngine';
 import type { CastResult } from '@/lib/spellEngine';
-import { DEFAULT_PLAYER_INK, regenerateInk, spendInk } from '@/lib/spell/inkSimulator';
+import {
+  calculateSpellCardInkCost,
+  DEFAULT_PLAYER_INK,
+  getInkReservoir,
+  regenerateInk,
+  simulateInkSpend,
+  spendInk,
+} from '@/lib/spell/inkSimulator';
 import { chooseEnemySpellPlan, type EnemySpellPlan } from '@/lib/spell/enemySpellAI';
 import {
   defaultGrimoireLoadout,
-  isLegacyPatternAllowedByLoadout,
   loadCodexEntries,
-  recordLegacySpellDiscovery,
+  recordSpellCardDiscovery,
   saveCodexEntries,
+  validateSpellCardForLoadout,
 } from '@/lib/spell/codexStore';
+import { resolveDiegeticFailure } from '@/lib/recognizer/failureResolver';
+import { getGlyphById } from '@/data/glyphTemplates';
+import { compileSpellFromStrokes } from '@/lib/spell/spellCompiler';
+import { drawingStrokesToRecognitionStrokes } from '@/lib/spell/strokeAdapter';
 import { GameCanvas } from '@/components/GameCanvas';
 import { EnemyCastPreview } from '@/components/EnemyCastPreview';
 import { SpellEffectDisplay } from '@/components/SpellEffect';
@@ -36,6 +42,9 @@ import {
   Hexagon, Key
 } from 'lucide-react';
 import './App.css';
+import type { DiegeticFailureResolution } from '@/lib/recognizer/failureResolver';
+import type { RecognitionTelemetryEvent } from '@/types/telemetry';
+import type { SpellCard } from '@/types/spellCard';
 
 const elementColors: Record<SigilType, string> = {
   fire:    'rgb(232, 93, 62)',
@@ -68,7 +77,121 @@ const PLAYER_CAST_PHASE_ADVANCE_DELAY_MS = 1200;
 const ENEMY_CAST_START_DELAY_MS = 1000;
 const ENEMY_RESULT_DELAY_MS = 3200;
 const DEFEAT_RESULT_DELAY_MS = 1800;
-const INK_PER_DRAW_PIXEL = 1 / 170;
+const INK_PER_DRAW_PIXEL = 1 / 320;
+
+type GameplayCastResult = CastResult & {
+  spellCard?: SpellCard;
+  spellHash?: string;
+  componentTemplateIds?: readonly string[];
+  diegeticFailure?: DiegeticFailureResolution;
+  telemetry?: RecognitionTelemetryEvent;
+};
+
+const ELEMENT_BY_TEMPLATE_ID: Record<string, SigilType> = {
+  ELEMENT_IGNIS: 'fire',
+  ELEMENT_AQUA: 'water',
+  ELEMENT_TERRA: 'earth',
+  ELEMENT_VENTUS: 'wind',
+  ELEMENT_LUX: 'light',
+  DERIVED_GELU: 'ice',
+  ELEMENT_UMBRA: 'shadow',
+  DERIVED_FULMEN: 'thunder',
+  ELEMENT_VITA: 'nature',
+  ELEMENT_MENS: 'void',
+};
+
+const getPrimarySigilFromCard = (card: SpellCard): SigilType | undefined => {
+  const elementNode = card.graph.nodes.find((node) => node.kind === 'element');
+  return elementNode ? ELEMENT_BY_TEMPLATE_ID[elementNode.templateId] : undefined;
+};
+
+const effectSummaryFromCard = (card: SpellCard): string => {
+  if (card.kind === 'defense') return `Barreira de potência ${card.potency}.`;
+  if (card.kind === 'support') return `Selo de suporte com potência ${card.potency}.`;
+  if (card.kind === 'control') return `Controle arcano com potência ${card.potency}.`;
+  return `Ataque arcano com potência ${card.potency}.`;
+};
+
+const makeFailureResult = (
+  spellName: string,
+  description: string,
+  feedback: string,
+  precision: number,
+  extra: Partial<GameplayCastResult> = {},
+): GameplayCastResult => ({
+  spellName,
+  description,
+  damage: 0,
+  healing: 0,
+  shield: 0,
+  effects: [],
+  accuracy: 0,
+  precision,
+  isSuccess: false,
+  feedback,
+  elementalMultiplier: 0,
+  inkCost: 0,
+  ...extra,
+});
+
+const buildCastResultFromCard = (
+  card: SpellCard,
+  precision: number,
+  target: Entity,
+  inkCost: number,
+  inkRemaining: number,
+  inkOverloadChance: number,
+  telemetry?: RecognitionTelemetryEvent,
+): GameplayCastResult => {
+  const primarySigil = getPrimarySigilFromCard(card);
+  const precisionFactor = Math.max(0.35, precision / 100);
+  const elementalMultiplier = primarySigil && (card.target === 'enemy' || card.target === 'default_enemy')
+    ? getWeaknessMultiplier(primarySigil, target.weakness)
+    : 1;
+  const adjustedPotency = Math.round(card.potency * precisionFactor);
+  const isSelfTarget = card.target === 'self' || card.kind === 'defense' || card.kind === 'support';
+  const damage = isSelfTarget
+    ? 0
+    : Math.round(adjustedPotency * elementalMultiplier * (card.kind === 'control' ? 0.72 : 1));
+  const healing = card.kind === 'support' && isSelfTarget ? Math.max(4, Math.round(adjustedPotency * 0.7)) : 0;
+  const shield = card.kind === 'defense' && isSelfTarget ? Math.max(5, Math.round(adjustedPotency * 0.85)) : 0;
+  const effects: SpellEffect[] = primarySigil
+    ? [{
+        element: primarySigil,
+        form: card.kind === 'defense' ? 'shield_sign' : card.kind === 'support' ? 'heal_sign' : 'direction',
+        power: card.potency,
+        potency: Math.max(damage, healing, shield, adjustedPotency),
+        accuracy: precision,
+        area: isSelfTarget ? 'self' : 'single',
+        special: effectSummaryFromCard(card),
+      }]
+    : [];
+
+  return {
+    spellName: card.name,
+    description: effectSummaryFromCard(card),
+    damage,
+    healing,
+    shield,
+    effects,
+    accuracy: precision,
+    precision,
+    isSuccess: damage > 0 || healing > 0 || shield > 0,
+    feedback: card.recognitionOutcome === 'cast_weak'
+      ? 'A formula compilou, mas o circulo perdeu estabilidade.'
+      : 'Formula compilada pelo SpellGraph.',
+    elementalMultiplier,
+    inkCost,
+    inkRemaining,
+    inkOverloadChance,
+    inkCostBreakdown: calculateSpellCardInkCost({ card }),
+    primarySigil,
+    spellCard: card,
+    spellHash: card.id,
+    componentTemplateIds: card.componentTemplateIds,
+    telemetry,
+  };
+};
 
 export default function App() {
   const [gamePhase, setGamePhase] = useState<GamePhase>('menu');
@@ -116,10 +239,10 @@ export default function App() {
   const [timeRemaining, setTimeRemaining] = useState(45);
   const [currentComponents, setCurrentComponents] = useState<GlyphComponent[]>([]);
   const [currentPrecision, setCurrentPrecision] = useState<PrecisionBreakdown | null>(null);
-  const [castResult, setCastResult] = useState<CastResult | null>(null);
-  const [, setSpells] = useState([...PREDEFINED_SPELLS]);
+  const [currentStrokes, setCurrentStrokes] = useState<DrawingStroke[]>([]);
+  const [castResult, setCastResult] = useState<GameplayCastResult | null>(null);
   const [codexEntries, setCodexEntries] = useState(loadCodexEntries);
-  const [showGrimoire, setShowGrimoire] = useState(false);
+  const [showCodex, setShowCodex] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [combo, setCombo] = useState(0);
   const [score, setScore] = useState(0);
@@ -130,11 +253,12 @@ export default function App() {
   const [logMessages, setLogMessages] = useState<string[]>([]);
   const [detectedSigils, setDetectedSigils] = useState<SigilType[]>([]);
   const [detectedSigns, setDetectedSigns] = useState<SignType[]>([]);
+  const [detectedGlyphIds, setDetectedGlyphIds] = useState<string[]>([]);
   const [canvasGlowColor, setCanvasGlowColor] = useState('rgb(180, 140, 80)');
   const [canvasElementName, setCanvasElementName] = useState('');
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const canvasResetRef = useRef(false);
-  const appliedCastRef = useRef<CastResult | null>(null);
+  const appliedCastRef = useRef<GameplayCastResult | null>(null);
   const drawingInkSpentRef = useRef(0);
   const playerInkRef = useRef(player.ink);
 
@@ -176,11 +300,13 @@ export default function App() {
     setTimeRemaining(45);
     setCurrentComponents([]);
     setCurrentPrecision(null);
+    setCurrentStrokes([]);
     setCastResult(null);
     appliedCastRef.current = null;
     setLogMessages([]);
     setDetectedSigils([]);
     setDetectedSigns([]);
+    setDetectedGlyphIds([]);
     resetCanvas();
     addLog('A batalha começou! Desenhe seu primeiro glifo.');
   }, [addLog, resetCanvas]);
@@ -188,60 +314,69 @@ export default function App() {
   const evaluateCurrentGlyph = useCallback((
     componentsOverride: GlyphComponent[] = currentComponents,
     precisionOverride: PrecisionBreakdown | null = currentPrecision,
+    strokesOverride: DrawingStroke[] = currentStrokes,
   ) => {
+    const precision = precisionOverride?.overall || 50;
     if (componentsOverride.length === 0) {
-      setCastResult({
-        spellName: 'Falha Mágica',
-        description: 'Nenhum glifo foi desenhado.',
-        damage: 0, healing: 0, shield: 0,
-        effects: [], accuracy: 0, precision: 0,
-        isSuccess: false,
-        feedback: 'O tempo acabou antes que você pudesse desenhar.',
-        elementalMultiplier: 0,
-        inkCost: 0,
-      });
+      setCastResult(makeFailureResult(
+        'Falha Magica',
+        'Nenhum glifo foi desenhado.',
+        'O tempo acabou antes que voce pudesse desenhar.',
+        0,
+      ));
       setGamePhase('casting');
       return;
     }
 
     const ring = componentsOverride.find(c => c.type === 'ring') || null;
     if (!ring) {
-      setCastResult({
-        spellName: 'Glifo Incompleto',
-        description: 'O círculo mágico não foi fechado.',
-        damage: 0, healing: 0, shield: 0,
-        effects: [], accuracy: 0,
-        precision: precisionOverride?.overall || 0,
-        isSuccess: false,
-        feedback: 'A magia precisa de um anel fechado para ativar.',
-        elementalMultiplier: 0,
-        inkCost: 0,
-      });
+      setCastResult(makeFailureResult(
+        'Glifo Incompleto',
+        'O circulo magico nao foi fechado.',
+        'A magia precisa de um anel fechado para ativar.',
+        precision,
+      ));
       setGamePhase('casting');
       return;
     }
 
-    const sigils = componentsOverride
-      .filter(c => c.type === 'sigil' && c.sigilType)
-      .map(c => c.sigilType!);
-    const signs = componentsOverride
-      .filter(c => c.type === 'sign' && c.signType)
-      .map(c => c.signType!);
+    const recognitionStrokes = drawingStrokesToRecognitionStrokes(strokesOverride);
+    const compiled = compileSpellFromStrokes(recognitionStrokes);
+    const telemetry = compiled.telemetry;
 
-    const precision = precisionOverride?.overall || 50;
-
-    if (!isLegacyPatternAllowedByLoadout(sigils, signs, defaultGrimoireLoadout)) {
-      setCastResult({
-        spellName: 'Loadout Incompleto',
-        description: 'O grimorio atual nao contem todos os glifos deste desenho.',
-        damage: 0, healing: 0, shield: 0,
-        effects: [], accuracy: 0,
+    if (!compiled.ok) {
+      const failure = compiled.failure;
+      setCastResult(makeFailureResult(
+        'Falha de Compilacao',
+        failure.message,
+        failure.diegeticFailure?.playerFeedback ?? failure.message,
         precision,
-        isSuccess: false,
-        feedback: 'O Codex recusou a formula: ha glifos fora do loadout do duelo.',
-        elementalMultiplier: 0,
-        inkCost: 0,
-      });
+        {
+          diegeticFailure: failure.diegeticFailure,
+          telemetry,
+        },
+      ));
+      setGamePhase('casting');
+      return;
+    }
+
+    const card = compiled.card;
+    setDetectedGlyphIds([...card.componentTemplateIds]);
+    const loadoutValidation = validateSpellCardForLoadout(card, defaultGrimoireLoadout, codexEntries);
+
+    if (!loadoutValidation.ok) {
+      setCastResult(makeFailureResult(
+        'Codex Recusou',
+        loadoutValidation.message,
+        loadoutValidation.message,
+        precision,
+        {
+          spellCard: card,
+          spellHash: card.id,
+          componentTemplateIds: card.componentTemplateIds,
+          telemetry,
+        },
+      ));
       setGamePhase('casting');
       return;
     }
@@ -250,10 +385,47 @@ export default function App() {
       ...player,
       ink: Math.min(player.maxInk, player.ink + drawingInkSpentRef.current),
     };
-    const result = castSpell(sigils, signs, precision, enemy, casterBeforeDrawing);
-    setCastResult(result);
+    const inkBreakdown = calculateSpellCardInkCost({ card });
+    const inkSimulation = simulateInkSpend(getInkReservoir(casterBeforeDrawing), inkBreakdown);
+
+    if (!inkSimulation.ok) {
+      const diegeticFailure = resolveDiegeticFailure({
+        ink: inkSimulation,
+        strokes: recognitionStrokes,
+      });
+      setCastResult(makeFailureResult(
+        'Tinta Insuficiente',
+        inkSimulation.message ?? 'A tinta acabou antes de alimentar a formula.',
+        diegeticFailure.playerFeedback,
+        precision,
+        {
+          spellCard: card,
+          spellHash: card.id,
+          componentTemplateIds: card.componentTemplateIds,
+          diegeticFailure,
+          inkFailure: inkSimulation.message,
+          inkOverloadChance: inkSimulation.overloadChance,
+          inkCostBreakdown: inkSimulation.breakdown,
+          telemetry,
+        },
+      ));
+      setGamePhase('casting');
+      return;
+    }
+
+    const finalPrecision = Math.round(precision * 0.65 + card.stability * 0.35);
+    setCastResult(buildCastResultFromCard(
+      card,
+      finalPrecision,
+      enemy,
+      inkSimulation.cost,
+      inkSimulation.remainingInk,
+      inkSimulation.overloadChance,
+      telemetry,
+    ));
     setGamePhase('casting');
-  }, [currentComponents, currentPrecision, enemy, player]);
+    return;
+  }, [currentComponents, currentPrecision, currentStrokes, codexEntries, enemy, player]);
 
   const handleInkDrag = useCallback((distance: number) => {
     const requestedInk = distance * INK_PER_DRAW_PIXEL;
@@ -294,9 +466,10 @@ export default function App() {
     };
   }, [gamePhase, evaluateCurrentGlyph, finalizeCanvas]);
 
-  const handleGlyphComplete = useCallback((components: GlyphComponent[], precision: PrecisionBreakdown) => {
+  const handleGlyphComplete = useCallback((components: GlyphComponent[], precision: PrecisionBreakdown, strokes: DrawingStroke[]) => {
     setCurrentComponents(components);
     setCurrentPrecision(precision);
+    setCurrentStrokes(strokes);
 
     const sigils = components.filter(c => c.type === 'sigil').map(c => c.sigilType!).filter(Boolean);
     const signs = components.filter(c => c.type === 'sign').map(c => c.signType!).filter(Boolean);
@@ -310,7 +483,7 @@ export default function App() {
     }
 
     setTimeout(() => {
-      evaluateCurrentGlyph(components, precision);
+      evaluateCurrentGlyph(components, precision, strokes);
     }, 600);
   }, [evaluateCurrentGlyph]);
 
@@ -348,38 +521,11 @@ export default function App() {
         setCombo(prev => prev + 1);
         setScore(prev => prev + actualDamage * (1 + combo * 0.1));
 
-        // Check for spell discovery
-        const spellSigils = [...detectedSigils].sort();
-        const spellSigns = [...detectedSigns].sort();
-        setSpells(prev => {
-          let spellWasKnown = false;
-          const updated = prev.map(spell => {
-          if (spellMatchesPattern(spell, spellSigils, spellSigns)) {
-            spellWasKnown = true;
-            if (!spell.discovered) addLog(`✨ Nova magia descoberta: ${spell.namePt}!`);
-            return { ...spell, discovered: true, useCount: spell.useCount + 1 };
-          }
-          return spell;
-        });
+        if (castResult.spellCard) {
+          setCodexEntries(entries => recordSpellCardDiscovery(entries, castResult.spellCard!));
+          addLog(`Codex registrou ${castResult.spellCard.name} (${castResult.spellHash}).`);
+        }
 
-          if (!spellWasKnown && detectedSigils.length > 0) {
-            const discoveredSpell = buildProceduralSpell(detectedSigils, detectedSigns, true, castResult.precision);
-            addLog(formatDiscoveryMessage(discoveredSpell, castResult.precision));
-            setCodexEntries(entries =>
-              recordLegacySpellDiscovery(entries, discoveredSpell, castResult.precision, castResult.inkCost),
-            );
-            updated.unshift(discoveredSpell);
-          } else {
-            const discovered = updated.find(spell => spellMatchesPattern(spell, spellSigils, spellSigns));
-            if (discovered) {
-            setCodexEntries(entries =>
-              recordLegacySpellDiscovery(entries, discovered, castResult.precision, castResult.inkCost),
-            );
-            }
-          }
-
-          return updated;
-        });
 
         addLog(`Você lançou ${castResult.spellName} causando ${actualDamage} de dano. Tinta: -${castResult.inkCost}.`);
       } else {
@@ -410,16 +556,50 @@ export default function App() {
 
     const timeout = setTimeout(() => {
       const plan = chooseEnemySpellPlan(enemy, player, { turn });
-      const action = getEnemyAction(enemy);
       setEnemyCastPlan(plan);
-      setEnemyAction(action.effect || plan.effectText);
+      setEnemyAction(plan.effectText);
       addLog(`${plan.spellName}: ${plan.effectText}`);
-      if (action.effect) addLog(action.effect);
-      if (action.inkCost > 0) {
-        setEnemy(e => spendInk(e, action.inkCost));
+      const inkBreakdown = {
+        base: plan.expectedInkCost,
+        complexity: Math.max(0, plan.templateIds.length - 4),
+        stability: plan.profile === 'apprentice' ? 1 : 0,
+        risk: plan.intent === 'desperate' ? 2 : 0,
+        infusion: 0,
+        total: plan.expectedInkCost,
+      };
+      const inkSimulation = simulateInkSpend(getInkReservoir(enemy), inkBreakdown);
+
+      if (!inkSimulation.ok) {
+        addLog(inkSimulation.message ?? `${enemy.name} ficou sem tinta antes de concluir o traco.`);
+        setTimeout(() => {
+          setTurn(t => t + 1);
+          setTimeRemaining(45);
+          setGamePhase('drawing');
+          setEnemyCastPlan(null);
+          setPlayer(current => regenerateInk(current));
+          setEnemy(current => regenerateInk(current));
+          drawingInkSpentRef.current = 0;
+          setDrawingInkSpent(0);
+          resetCanvas();
+        }, ENEMY_RESULT_DELAY_MS);
+        return;
       }
 
-      const damage = action.damage;
+      setEnemy(e => spendInk(e, inkSimulation.cost));
+
+      if (plan.intent === 'defense') {
+        setEnemy(e => ({ ...e, shield: e.shield + Math.round(plan.expectedPower * 0.8) }));
+        addLog(`${enemy.name} ergueu ${Math.round(plan.expectedPower * 0.8)} de escudo.`);
+      }
+
+      if (plan.intent === 'recover') {
+        setEnemy(e => ({ ...e, hp: Math.min(e.maxHp, e.hp + Math.round(plan.expectedPower * 0.7)) }));
+        addLog(`${enemy.name} recuperou ${Math.round(plan.expectedPower * 0.7)} de vida.`);
+      }
+
+      const damage = plan.intent === 'attack' || plan.intent === 'desperate' || plan.intent === 'control'
+        ? Math.round(plan.expectedPower * (plan.intent === 'control' ? 0.65 : 1))
+        : 0;
 
       setPlayer(p => {
         const shieldAbsorb = Math.min(damage, p.shield);
@@ -440,8 +620,10 @@ export default function App() {
             setEnemyCastPlan(null);
             setCurrentComponents([]);
             setCurrentPrecision(null);
+            setCurrentStrokes([]);
             setDetectedSigils([]);
             setDetectedSigns([]);
+            setDetectedGlyphIds([]);
             setPlayer(current => regenerateInk(current));
             setEnemy(current => regenerateInk(current));
             drawingInkSpentRef.current = 0;
@@ -466,6 +648,8 @@ export default function App() {
     setDrawingInkSpent(0);
     setCurrentComponents([]);
     setCurrentPrecision(null);
+    setCurrentStrokes([]);
+    setDetectedGlyphIds([]);
     setCastResult(null);
     appliedCastRef.current = null;
     setTimeRemaining(45);
@@ -510,7 +694,7 @@ export default function App() {
               <HelpCircle className="w-4 h-4 text-amber-500" />
             </button>
             <button
-              onClick={() => setShowGrimoire(true)}
+              onClick={() => setShowCodex(true)}
               className="p-2.5 rounded-xl bg-amber-900/30 border border-amber-800/40 hover:bg-amber-800/40 hover:border-amber-700/60 transition-all"
               title="Grimório"
             >
@@ -548,7 +732,7 @@ export default function App() {
 
             {/* Tutorial hints - show all 10 elements */}
             <div className="grid grid-cols-5 gap-2 max-w-sm mt-2">
-              {(Object.keys(SIGILS) as SigilType[]).map(k => (
+              {ACTIVE_SIGIL_TYPES.map(k => (
                 <div key={k} className="text-center p-2 bg-amber-950/30 border border-amber-900/30 rounded-xl">
                   <div className="flex justify-center mb-1">
                     <PerfectGlyphPreview mode="sigil" type={k} size={34} strokeWidth={3} />
@@ -741,6 +925,19 @@ export default function App() {
               </div>
             )}
 
+            {detectedGlyphIds.length > 0 && (
+              <div className="flex items-center justify-center gap-1.5 mt-2 flex-wrap">
+                {detectedGlyphIds.slice(0, 8).map((id) => {
+                  const glyph = getGlyphById(id);
+                  return (
+                    <span key={id} className="text-[10px] bg-black/35 text-amber-300/80 px-2 py-0.5 rounded border border-amber-900/25">
+                      {glyph?.display_name ?? id}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Precision details */}
             <div className="mt-3">
               <PrecisionDetails precision={currentPrecision} />
@@ -847,11 +1044,11 @@ export default function App() {
       )}
 
       {/* Overlays */}
-      {showGrimoire && (
+      {showCodex && (
         <CodexPanel
           entries={codexEntries}
           loadout={defaultGrimoireLoadout}
-          onClose={() => setShowGrimoire(false)}
+          onClose={() => setShowCodex(false)}
         />
       )}
       {showGuide && <GuidePanel onClose={() => setShowGuide(false)} />}

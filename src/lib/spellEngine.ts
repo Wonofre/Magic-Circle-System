@@ -1,6 +1,6 @@
 import type { SigilType, SignType, Spell, SpellEffect, Entity, StatusEffect } from '@/types/magic';
 import type { InkCostBreakdown } from '@/types/ink';
-import { SIGILS, SIGNS } from './magicSystem';
+import { ACTIVE_SIGIL_TYPES, ACTIVE_SIGN_TYPES, SIGILS, SIGNS } from './magicSystem';
 import { calculateLegacySpellInkCost, DEFAULT_ENEMY_INK, simulateInkSpend } from './spell/inkSimulator';
 
 // ============================================
@@ -635,8 +635,8 @@ const CURATED_SPELLS: Spell[] = [
   { id: 'thunder-water',   name: 'Maelstrom',        namePt: 'Maelstrom Elétrico',   description: 'Tempestade de raios e água de poder absoluto.', effects: [], glyphPattern: { sigils: ['thunder','water'], signs: ['dispersion'] }, damage: 46, healing: 0,  shield: 0,  discovered: false, useCount: 0, tier: 3 },
 ];
 
-const ALL_SIGIL_TYPES = Object.keys(SIGILS) as SigilType[];
-const ALL_SIGN_TYPES = Object.keys(SIGNS) as SignType[];
+const ALL_SIGIL_TYPES = [...ACTIVE_SIGIL_TYPES];
+const ALL_SIGN_TYPES = [...ACTIVE_SIGN_TYPES];
 
 const ELEMENTAL_PAIR_SEEDS: SigilType[][] = [
   ['fire', 'wind'],

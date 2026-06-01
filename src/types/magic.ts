@@ -53,13 +53,22 @@ export interface GlyphComponent {
   precision: number;  // 0-100 how well it was drawn
   angle?: number;     // rotation angle for signs
   size: number;       // relative size
+  rawClosureDistance?: number;
 }
 
 /** A point on the canvas */
 export interface Point {
   x: number;
   y: number;
+  t?: number;
   pressure?: number;
+  tangentialPressure?: number;
+  tiltX?: number;
+  tiltY?: number;
+  twist?: number;
+  altitudeAngle?: number;
+  azimuthAngle?: number;
+  pointerType?: string;
 }
 
 /** Bounding box */
@@ -197,6 +206,7 @@ export interface DrawingStroke {
   id: string;
   points: Point[];
   timestamp: number;
+  rawClosureDistance?: number;
 }
 
 /** Precision breakdown for feedback */

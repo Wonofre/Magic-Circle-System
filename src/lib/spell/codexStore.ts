@@ -1,50 +1,46 @@
 import { createSpellHash } from "@/lib/recognizer/graphCompiler";
+import { ACTIVE_SIGIL_TYPES, ACTIVE_SIGN_TYPES } from "@/lib/magicSystem";
 import type { SigilType, SignType, Spell } from "@/types/magic";
 import type { CodexSpellEntry, GrimoireLoadout } from "@/types/codex";
 import type { SpellCard } from "@/types/spellCard";
+import type { SemanticRiskLevel } from "@/types/recognition";
 
 const CODEX_STORAGE_KEY = "magic-circle-codex-v1";
 
-const ALL_LEGACY_SIGILS: readonly SigilType[] = [
-  "fire",
-  "water",
-  "earth",
-  "wind",
-  "light",
-  "ice",
-  "shadow",
-  "thunder",
-  "nature",
-  "void",
-];
+const ALL_LEGACY_SIGILS: readonly SigilType[] = [...ACTIVE_SIGIL_TYPES];
 
-const ALL_LEGACY_SIGNS: readonly SignType[] = [
-  "column",
-  "dispersion",
-  "levitation",
-  "direction",
-  "convergence",
-  "bolt",
-  "rain",
-  "enlarge",
-  "bird",
-  "weave",
-  "pull",
-  "crush",
-  "collection",
-  "billowing",
-  "float",
-  "shield_sign",
-  "heal_sign",
-  "reflect",
-  "chain",
-  "explosion",
-  "spiral",
-  "anchor",
-];
+const ALL_LEGACY_SIGNS: readonly SignType[] = [...ACTIVE_SIGN_TYPES];
 
 export const defaultGrimoireLoadout: GrimoireLoadout = {
-  knownGlyphIds: [],
+  knownGlyphIds: [
+    "FRAME_CIRCLE_CONTAINMENT",
+    "SOURCE_DOT",
+    "ELEMENT_IGNIS",
+    "ELEMENT_AQUA",
+    "ELEMENT_TERRA",
+    "ELEMENT_VENTUS",
+    "ELEMENT_LUX",
+    "ELEMENT_UMBRA",
+    "ELEMENT_VITA",
+    "ELEMENT_MENS",
+    "DERIVED_GELU",
+    "DERIVED_FULMEN",
+    "ACTION_EMIT",
+    "ACTION_CONTAIN",
+    "ACTION_RESTORE",
+    "ACTION_SEAL",
+    "FORM_PROJECTILE",
+    "FORM_BEAM",
+    "FORM_AURA",
+    "FORM_WAVE",
+    "FORM_CHAIN",
+    "FORM_RAIN",
+    "DEFENSE_SHIELD",
+    "TARGET_ENEMY",
+    "TARGET_SELF",
+  ],
+  discoveredGlyphIds: [],
+  masteredGlyphIds: [],
   knownLegacySigils: ALL_LEGACY_SIGILS,
   knownLegacySigns: ALL_LEGACY_SIGNS,
   allowedRecipeIds: [
@@ -55,6 +51,12 @@ export const defaultGrimoireLoadout: GrimoireLoadout = {
   ],
   allowedInkInfusionIds: [],
   maxRiskLevel: "medium",
+};
+
+const RISK_RANK: Record<SemanticRiskLevel, number> = {
+  low: 0,
+  medium: 1,
+  high: 2,
 };
 
 const clampScore = (value: number): number => Math.max(0, Math.min(100, Math.round(value)));
@@ -90,6 +92,108 @@ export const isLegacyPatternAllowedByLoadout = (
 
   return sigils.every((sigil) => knownSigils.has(sigil)) &&
     signs.every((sign) => knownSigns.has(sign));
+};
+
+export const getAllowedGlyphIds = (
+  loadout: GrimoireLoadout = defaultGrimoireLoadout,
+  entries: readonly CodexSpellEntry[] = [],
+): ReadonlySet<string> => {
+  const ids = new Set<string>([
+    ...loadout.knownGlyphIds,
+    ...loadout.discoveredGlyphIds,
+    ...loadout.masteredGlyphIds,
+  ]);
+
+  for (const entry of entries) {
+    const shouldUnlock = entry.mastery === "discovered" || entry.mastery === "practiced" || entry.mastery === "mastered";
+    if (!shouldUnlock) continue;
+    entry.componentTemplateIds.forEach((id) => ids.add(id));
+  }
+
+  return ids;
+};
+
+export const getSpellCardRiskLevel = (card: SpellCard): SemanticRiskLevel => {
+  if (card.graph.nodes.some((node) => node.semanticRole === "risk" || node.recognitionOutcome === "backfire")) {
+    return "high";
+  }
+
+  if (
+    card.graph.nodes.some((node) =>
+      node.semanticRole === "ink" ||
+      node.semanticRole === "action" ||
+      node.semanticRole === "defense" ||
+      node.recognitionOutcome === "cast_weak" ||
+      node.recognitionOutcome === "partial",
+    )
+  ) {
+    return "medium";
+  }
+
+  return "low";
+};
+
+export interface SpellCardLoadoutValidation {
+  readonly ok: boolean;
+  readonly missingGlyphIds: readonly string[];
+  readonly recipeAllowed: boolean;
+  readonly riskAllowed: boolean;
+  readonly riskLevel: SemanticRiskLevel;
+  readonly message: string;
+}
+
+export const validateSpellCardForLoadout = (
+  card: SpellCard,
+  loadout: GrimoireLoadout = defaultGrimoireLoadout,
+  entries: readonly CodexSpellEntry[] = [],
+): SpellCardLoadoutValidation => {
+  const allowedGlyphIds = getAllowedGlyphIds(loadout, entries);
+  const missingGlyphIds = card.componentTemplateIds.filter((id) => !allowedGlyphIds.has(id));
+  const recipeAllowed = loadout.allowedRecipeIds.includes(card.recipeId);
+  const riskLevel = getSpellCardRiskLevel(card);
+  const riskAllowed = RISK_RANK[riskLevel] <= RISK_RANK[loadout.maxRiskLevel];
+
+  if (missingGlyphIds.length > 0) {
+    return {
+      ok: false,
+      missingGlyphIds,
+      recipeAllowed,
+      riskAllowed,
+      riskLevel,
+      message: `O Codex ainda nao conhece ${missingGlyphIds.length} glifo(s) desta formula.`,
+    };
+  }
+
+  if (!recipeAllowed) {
+    return {
+      ok: false,
+      missingGlyphIds,
+      recipeAllowed,
+      riskAllowed,
+      riskLevel,
+      message: "A receita desta magia nao esta equipada no Codex.",
+    };
+  }
+
+  if (!riskAllowed) {
+    return {
+      ok: false,
+      missingGlyphIds,
+      recipeAllowed,
+      riskAllowed,
+      riskLevel,
+      message: "O risco da formula excede o limite atual do Codex.",
+    };
+  }
+
+  return {
+    ok: true,
+    missingGlyphIds,
+    recipeAllowed,
+    riskAllowed,
+    riskLevel,
+    message: "Formula permitida pelo Codex.",
+  };
 };
 
 export const loadCodexEntries = (): readonly CodexSpellEntry[] => {
