@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Glyph Sheet Seed — Magic Circle TCG</title>
+  <style>
+    :root { --bg:#f8f5ec; --card:#fffdf8; --ink:#221b13; --muted:#6b5d4f; --line:#c9bda9; --accent:#8b5e24; }
+    body { margin:0; font-family:Inter,Arial,sans-serif; background:var(--bg); color:var(--ink); }
+    header { padding:28px 32px; border-bottom:1px solid var(--line); position:sticky; top:0; background:rgba(248,245,236,.95); backdrop-filter:blur(8px); }
+    h1 { margin:0; font-size:28px; letter-spacing:-.03em; }
+    p { color:var(--muted); max-width:900px; line-height:1.45; }
+    main { padding:24px 32px 48px; }
+    .toolbar { display:flex; gap:12px; flex-wrap:wrap; margin-top:12px; }
+    input, select { border:1px solid var(--line); background:var(--card); border-radius:12px; padding:10px 12px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:16px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:14px; }
+    .sigil { width:118px; height:118px; display:grid; place-items:center; background:#fbf7ef; border:1px solid #eadfcc; border-radius:14px; }
+    .row { display:flex; gap:14px; align-items:flex-start; }
+    .family { color:var(--accent); font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:.08em; }
+    h2 { margin:.25rem 0; font-size:18px; }
+    .id { font:11px ui-monospace,monospace; color:var(--muted); word-break:break-all; }
+    .desc { font-size:13px; color:var(--muted); }
+    .pill { display:inline-block; border:1px solid var(--line); border-radius:999px; padding:4px 8px; margin:3px 3px 0 0; font-size:12px; color:var(--muted); }
+    path { fill:none; stroke:currentColor; stroke-width:4; stroke-linecap:round; stroke-linejoin:round; vector-effect:non-scaling-stroke; }
+    details { margin-top:10px; border-top:1px solid var(--line); padding-top:8px; }
+    pre { overflow:auto; max-height:220px; background:#241a13; color:#f8f5ec; padding:12px; border-radius:12px; font-size:11px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Glyph Sheet Seed — Magic Circle TCG</h1>
+    <p>Viewer simples dos templates seed. O JSON verdadeiro fica em <code>src/data/glyphTemplates.seed.json</code>. A folha SVG fica em <code>docs/glyphs/glyph_sheet_seed.svg</code>.</p>
+    <div class="toolbar">
+      <input id="q" placeholder="Buscar glifo, família, tag..." />
+      <select id="family"><option value="">Todas as famílias</option></select>
+    </div>
+  </header>
+  <main><div id="grid" class="grid"></div></main>
+  <script>
+    async function loadGlyphs() {
+      const candidates = [
+        '../../src/data/glyphTemplates.seed.json',
+        '/src/data/glyphTemplates.seed.json',
+        './glyphTemplates.seed.json'
+      ];
+      for (const url of candidates) {
+        try {
+          const res = await fetch(url);
+          if (res.ok) return await res.json();
+        } catch (_) {}
+      }
+      throw new Error('Não foi possível carregar glyphTemplates.seed.json. Abra via dev server ou copie o JSON para esta pasta.');
+    }
+
+    function pathFromPoints(points) {
+      if (!points || !points.length) return '';
+      return 'M ' + points.map(p => p[0] + ' ' + p[1]).join(' L ');
+    }
+
+    function renderGlyph(g) {
+      const paths = g.strokes.map(s => `<path d="${pathFromPoints(s)}"></path>`).join('');
+      return `<svg viewBox="0 0 100 100" width="96" height="96" aria-label="${g.display_name}">${paths}</svg>`;
+    }
+
+    function card(g) {
+      const topo = g.topology_signature || {};
+      return `<article class="card" data-family="${g.family}" data-text="${(g.id + ' ' + g.display_name + ' ' + g.family + ' ' + (g.tags || []).join(' ')).toLowerCase()}">
+        <div class="row">
+          <div class="sigil">${renderGlyph(g)}</div>
+          <div>
+            <div class="family">${g.family}</div>
+            <h2>${g.display_name}</h2>
+            <div class="id">${g.id}</div>
+            <p class="desc">${g.description}</p>
+          </div>
+        </div>
+        <span class="pill">loops: ${topo.loops ?? 0}</span>
+        <span class="pill">strokes: ${g.strokes.length}</span>
+        <span class="pill">geom: ${topo.dominant_geometry || 'mixed'}</span>
+        <span class="pill">conf ≥ ${g.recognition?.min_confidence ?? '-'}</span>
+        <details><summary>spec técnico</summary><pre>${JSON.stringify(g, null, 2)}</pre></details>
+      </article>`;
+    }
+
+    let GLYPHS = [];
+    function render() {
+      const query = q.value.trim().toLowerCase();
+      const fam = family.value;
+      grid.innerHTML = GLYPHS.filter(g => {
+        const text = (g.id + ' ' + g.display_name + ' ' + g.family + ' ' + (g.tags || []).join(' ')).toLowerCase();
+        return (!query || text.includes(query)) && (!fam || g.family === fam);
+      }).map(card).join('');
+    }
+
+    loadGlyphs().then(glyphs => {
+      GLYPHS = glyphs;
+      const fams = [...new Set(glyphs.map(g => g.family))].sort();
+      family.innerHTML += fams.map(f => `<option value="${f}">${f}</option>`).join('');
+      q.oninput = render;
+      family.onchange = render;
+      render();
+    }).catch(err => {
+      grid.innerHTML = `<div class="card"><h2>Erro</h2><p>${err.message}</p></div>`;
+    });
+  </script>
+</body>
+</html>
