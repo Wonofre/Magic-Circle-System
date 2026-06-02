@@ -1,3 +1,5 @@
+import { getRuneByTemplateId } from "@/data/magicOntology";
+import { activeRuneTemplateIds } from "@/data/activeRuneCatalog";
 import { evaluateSemanticMargin } from "@/lib/recognizer/semanticMargin";
 import { matchGlyphTemplates } from "@/lib/recognizer/templateMatcher";
 import { validateGlyphTopology } from "@/lib/recognizer/topologyValidator";
@@ -13,12 +15,23 @@ import type { CircleQuality, MandalaSymbolPosition, MandalaSymbolZone } from "@/
 import type { MandalaDocumentBuildContext, MandalaSymbolContext } from "@/lib/spell/mandalaDocument";
 
 const CASTABLE_OUTCOMES = new Set(["cast_clean", "cast_weak", "partial"]);
-const MAX_COMPONENT_GROUP_SIZE = 3;
+const MAX_COMPONENT_GROUP_SIZE = 9;
+const MAX_LOCAL_COMBINATION_SIZE = 3;
+const COMPONENT_NEIGHBOR_DISTANCE = 72;
 const DEFAULT_COMPONENT_MATCH_OPTIONS = {
-  topK: 8,
-  totalSamplePoints: 80,
+  topK: 12,
+  totalSamplePoints: 64,
   maxMeanDistance: 56,
   strokeCountPenalty: 0.025,
+  templateIdFilter: activeRuneTemplateIds,
+  allowedVariants: [
+    "direct",
+    "reverse_points",
+    "reverse_strokes",
+    "reverse_points_and_strokes",
+    "rotate_-10",
+    "rotate_10",
+  ],
   scribbleThresholds: {
     maxIntersectionCount: 80,
     maxIntersectionDensity: 0.75,
@@ -126,37 +139,83 @@ const canGroup = (strokes: readonly RecognitionStroke[]): boolean => {
 const buildStrokeGroups = (strokes: readonly RecognitionStroke[]): readonly StrokeGroup[] => {
   const indexed = strokes
     .map((stroke, sourceIndex): IndexedStroke => ({ stroke, sourceIndex }))
-    .filter(({ stroke }) => stroke.points.length >= 5);
+    .filter(({ stroke }) => stroke.points.length >= 2);
   const groups: StrokeGroup[] = [];
+  const seenGroups = new Set<string>();
+
+  const pushGroup = (entries: readonly IndexedStroke[]) => {
+    if (entries.length === 0 || entries.length > MAX_COMPONENT_GROUP_SIZE) return;
+
+    const sourceIndexes = entries.map(({ sourceIndex }) => sourceIndex).sort((a, b) => a - b);
+    const key = sourceIndexes.join(":");
+    if (seenGroups.has(key)) return;
+
+    const groupStrokes = sourceIndexes.map((sourceIndex) => strokes[sourceIndex]);
+    if (!canGroup(groupStrokes)) return;
+
+    seenGroups.add(key);
+    groups.push({
+      strokes: groupStrokes,
+      sourceIndexes,
+    });
+  };
+  const shouldBuildLocalCombinations = indexed.length <= 6;
 
   for (let first = 0; first < indexed.length; first += 1) {
-    groups.push({
-      strokes: [indexed[first].stroke],
-      sourceIndexes: [indexed[first].sourceIndex],
-    });
+    pushGroup([indexed[first]]);
+
+    if (!shouldBuildLocalCombinations) {
+      continue;
+    }
 
     for (let second = first + 1; second < indexed.length; second += 1) {
       const pair = [indexed[first], indexed[second]];
-      const pairStrokes = pair.map(({ stroke }) => stroke);
-      if (canGroup(pairStrokes)) {
-        groups.push({
-          strokes: pairStrokes,
-          sourceIndexes: pair.map(({ sourceIndex }) => sourceIndex),
-        });
-      }
+      pushGroup(pair);
 
       for (let third = second + 1; third < indexed.length; third += 1) {
         const triple = [indexed[first], indexed[second], indexed[third]];
-        const tripleStrokes = triple.map(({ stroke }) => stroke);
-        if (triple.length <= MAX_COMPONENT_GROUP_SIZE && canGroup(tripleStrokes)) {
-          groups.push({
-            strokes: tripleStrokes,
-            sourceIndexes: triple.map(({ sourceIndex }) => sourceIndex),
-          });
+        if (triple.length <= MAX_LOCAL_COMBINATION_SIZE) {
+          pushGroup(triple);
         }
       }
     }
   }
+
+  const visited = new Set<number>();
+  indexed.forEach((_, entryIndex) => {
+    if (visited.has(entryIndex)) return;
+
+    const clusterIndexes = new Set<number>([entryIndex]);
+    const queue = [entryIndex];
+    visited.add(entryIndex);
+
+    while (queue.length > 0) {
+      const currentIndex = queue.shift()!;
+      const current = indexed[currentIndex];
+
+      indexed.forEach((candidate, candidateIndex) => {
+        if (visited.has(candidateIndex)) return;
+        if (
+          getStrokeGroupDistance([current.stroke], [candidate.stroke]) >
+          COMPONENT_NEIGHBOR_DISTANCE
+        ) {
+          return;
+        }
+
+        visited.add(candidateIndex);
+        clusterIndexes.add(candidateIndex);
+        queue.push(candidateIndex);
+      });
+    }
+
+    const cluster = [...clusterIndexes]
+      .sort((a, b) => indexed[a].sourceIndex - indexed[b].sourceIndex)
+      .map((index) => indexed[index]);
+
+    if (cluster.length > MAX_LOCAL_COMBINATION_SIZE) {
+      pushGroup(cluster);
+    }
+  });
 
   return groups;
 };
@@ -189,9 +248,22 @@ const coerceSemanticToCastable = (
   };
 };
 
-const recognizeComponentGroup = (group: StrokeGroup): ComponentRecognition | null => {
-  const match = matchGlyphTemplates(group.strokes, DEFAULT_COMPONENT_MATCH_OPTIONS);
+const recognizeComponentGroup = (
+  group: StrokeGroup,
+  frameBounds?: RecognitionBounds,
+): ComponentRecognition | null => {
+  const sourceBounds = getBounds(group.strokes);
+  const match = matchGlyphTemplates(group.strokes, {
+    ...DEFAULT_COMPONENT_MATCH_OPTIONS,
+    context: {
+      sourceBounds,
+      frameBounds,
+    },
+  });
   if (!match.topCandidate || match.inputRejected) return null;
+
+  const maxExpectedStrokes = Math.max(3, match.topCandidate.template.strokes.length + 2);
+  if (group.strokes.length > maxExpectedStrokes) return null;
 
   const topology = validateGlyphTopology(match.normalized.strokes, match.topCandidate.template, {
     maxNoiseStrokeRatio: 0.6,
@@ -207,13 +279,22 @@ const recognizeComponentGroup = (group: StrokeGroup): ComponentRecognition | nul
 
   if (!CASTABLE_OUTCOMES.has(semantic.outcome)) return null;
 
+  const strokeCoverageBonus =
+    Math.abs(group.strokes.length - match.topCandidate.template.strokes.length) <= 1
+      ? 0.24
+      : 0;
+
   return {
     semantic,
     match,
     topology,
     strokes: group.strokes,
     sourceIndexes: group.sourceIndexes,
-    score: semantic.confidence + match.semanticMargin * 0.45 + group.sourceIndexes.length * 0.015,
+    score:
+      semantic.confidence +
+      match.semanticMargin * 0.45 +
+      group.sourceIndexes.length * 0.035 +
+      strokeCoverageBonus,
   };
 };
 
@@ -349,6 +430,24 @@ const getPosition = (
   };
 };
 
+const getExpectedZoneScore = (recognition: ComponentRecognition): number => {
+  const templateId = recognition.semantic.candidate?.template.id;
+  const position = recognition.position;
+  if (!templateId || !position) return 0;
+
+  const rune = getRuneByTemplateId(templateId);
+  if (!rune) return 0;
+  if (rune.expectedZones.includes(position.zone)) return position.zone === "orbital" ? 0.18 : 0.14;
+  if (rune.role === "container") return -0.45;
+  if (position.zone === "orbital" || position.zone === "frame") return -0.22;
+  return -0.14;
+};
+
+const applyContextualScore = (recognition: ComponentRecognition): ComponentRecognition => ({
+  ...recognition,
+  score: recognition.score + getExpectedZoneScore(recognition),
+});
+
 const compareMandalaOrder = (a: ComponentRecognition, b: ComponentRecognition): number => {
   const aRole = getRole(a);
   const bRole = getRole(b);
@@ -389,18 +488,25 @@ const makeSymbolsByTemplateId = (
 export const parseMandalaFromStrokes = (
   strokes: readonly RecognitionStroke[],
 ): MandalaParseResult => {
-  const recognitions = selectComponentRecognitions(
-    buildStrokeGroups(strokes)
-      .map(recognizeComponentGroup)
-      .filter((recognition): recognition is ComponentRecognition => Boolean(recognition)),
-  );
-  const frameRecognition = getFrameRecognition(recognitions);
+  const strokeGroups = buildStrokeGroups(strokes);
+  const initialRecognitions = strokeGroups
+    .map((group) => recognizeComponentGroup(group))
+    .filter((recognition): recognition is ComponentRecognition => Boolean(recognition));
+  const initialFrameRecognition = getFrameRecognition(initialRecognitions);
+  const initialFrameGeometry = getFrameGeometry(initialFrameRecognition);
+  const candidateRecognitions = (initialFrameGeometry
+    ? strokeGroups.map((group) => recognizeComponentGroup(group, initialFrameGeometry.bounds))
+    : initialRecognitions
+  ).filter((recognition): recognition is ComponentRecognition => Boolean(recognition));
+  const frameRecognition = getFrameRecognition(candidateRecognitions);
   const frameGeometry = getFrameGeometry(frameRecognition);
   const circleQuality = calculateCircleQuality(frameRecognition);
-  const positionedRecognitions = recognitions.map((recognition): ComponentRecognition => ({
-    ...recognition,
-    position: getPosition(recognition, frameGeometry),
-  }));
+  const positionedRecognitions = selectComponentRecognitions(
+    candidateRecognitions.map((recognition): ComponentRecognition => applyContextualScore({
+      ...recognition,
+      position: getPosition(recognition, frameGeometry),
+    })),
+  );
   const mandalaOrderedRecognitions = [...positionedRecognitions].sort(compareMandalaOrder);
 
   return {

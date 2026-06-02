@@ -593,6 +593,32 @@ Criterio de aceite:
 - assistencia nao aceita rabisco como magia;
 - modo aprendiz reduz frustracao sem quebrar regra.
 
+Resultado parcial - melhoria profunda de reconhecimento:
+- corrigido matcher para normalizar templates e input no mesmo espaco antes da comparacao;
+- matcher agora usa cache de templates, variantes controladas, score sequencial + point-cloud/chamfer e contexto de zona/tamanho;
+- parser de mandala passou a reconhecer clusters multi-stroke maiores e limita matching aos glifos ativos do duelo;
+- checks de topologia passaram a usar cantos, viradas e marcador de saida quando declarados no template;
+- canvas nao finaliza mais imediatamente ao detectar o primeiro circulo; usa finalizacao por inatividade depois que ha moldura e conteudo;
+- App usa fallback temporario via ponte legada quando o compilador novo falha, registrando telemetria de fallback;
+- adicionados testes de regressao para 28 glifos ativos, variacoes humanas, glifos multi-stroke, negativos dificeis e fluxo de finalizacao;
+- `npm test` e `npm run build` passam.
+
+Resultado parcial - calibragem de sigilos/chaves e autoria SVG:
+- criado `src/lib/recognizer/glyphTemplateCalibration.ts` para auditar cada glifo ativo um por um com variacoes sinteticas de jitter, rotacao, escala e direcao de traco;
+- criado `src/lib/recognizer/glyphTemplateCalibration.test.ts` para impedir regressao de top-1, margem semantica e topologia nos glifos ativos;
+- criado `src/lib/recognizer/svgGlyphTemplate.ts` para converter SVG simples em `GlyphTemplate` normalizado, facilitando a criacao de novos simbolos;
+- criado `docs/glyphs/svg_template_authoring.md` com fluxo de criacao, importacao e calibragem de novos SVGs;
+- `ELEMENT_AQUA` ganhou segunda ondulacao interna e assinatura `open_strokes: 2`, ficando mais separado de `ELEMENT_TERRA` e `ELEMENT_IGNIS`;
+- `FORM_AURA` ganhou quatro marcas cardinais e assinatura `open_strokes: 4`, ficando mais separado de molduras circulares;
+- previews do Guia, Codex e sigilos legados agora usam renderizacao compartilhada baseada no catalogo quando ha templateId mapeado;
+- matcher passou a aplicar penalidade topologica leve no ranking, aumentando margem contra candidatos visualmente parecidos mas estruturalmente errados;
+- `npm test` passa com 42 testes.
+
+Pendencias:
+- calibrar thresholds com desenhos reais de jogadores, nao apenas templates e perturbacoes sinteticas;
+- reduzir custo do matcher em sessoes longas com cache por grupo/candidato ou pre-filtro mais agressivo;
+- transformar fallback legado em modo debug/compatibilidade depois que o parser novo estiver estavel o bastante.
+
 ### Fase 16 - Infusoes e drops
 
 - [ ] Criar `inkInfusions.ts`.
@@ -635,6 +661,109 @@ Criterio de aceite:
 - arena nao cria segundo sistema de magia;
 - desenhos validos do TCG continuam validos no ambiente quando fizer sentido;
 - falhas continuam diegeticas.
+
+### Fase 19 - Rework visual TCG e grimorio vivo
+
+- [x] Criar `src/lib/ui/motionTokens.ts` com duracoes, curvas e niveis de intensidade por tipo de feedback.
+- [x] Criar `src/lib/ui/themeTokens.ts` com paleta de papel, ouro, vinho, tinta e acentos elementais.
+- [x] Criar `src/components/BattleSceneShell.tsx`.
+- [x] Transformar a tela de combate em um livro aberto com duas paginas.
+- [x] Mover HP, tinta, escudo, fraqueza e intencao para superficies proximas da area de foco.
+- [x] Criar altar visual do oponente com retrato, recursos e trilha de intencao.
+- [x] Transformar log de batalha em marginalia contextual de baixo ruido.
+- [x] Substituir blocos utilitarios por superficies com textura, moldura e hierarquia editorial.
+
+Criterio de aceite:
+- combate lembra um duelo em grimorio, nao um prototipo com widgets;
+- informacoes criticas ficam proximas ao foco principal;
+- batalha continua legivel em 1 olhar;
+- `npm run build` passa.
+
+Resultado:
+- criados `src/lib/ui/motionTokens.ts`, `src/lib/ui/themeTokens.ts` e `src/components/BattleSceneShell.tsx`;
+- `App.tsx` agora renderiza o combate pelo shell de grimorio vivo, preservando `GameCanvas`, reconhecedor, parser, SpellCard e fluxo de combate;
+- o canvas recebeu tratamento de papel/tinta para parecer uma pagina ativa do grimorio;
+- o fundo antigo perdeu brilhos soltos e ganhou textura de mesa/tomo;
+- adicionados ajustes responsivos para altar, paginas, tokens e VFX em telas estreitas;
+- `npm run build` passa.
+
+Pendencias:
+- validar legibilidade em monitores menores e em mobile real;
+- criar page flip/slide reduzido por fase sem atrapalhar input;
+- revisar contraste fino depois de playtest visual.
+
+### Fase 20 - Ritmo, telegraph e feedback cinematografico
+
+- [x] Criar `src/lib/ui/turnPresentationDirector.ts`.
+- [x] Reduzir cadeia de timeouts longos do `App.tsx` usando timings curtos centralizados.
+- [x] Reduzir o toast de `SpellEffectDisplay` para confirmacao rapida.
+- [x] Integrar uma camada visual de impacto na pagina ativa.
+- [x] Manter opcao de pular/encurtar animacoes em debug com `?fastCombat=1`, `?skipMotion=1` ou `localStorage.fastCombat = "1"`.
+- [x] Encurtar timings automaticamente quando `prefers-reduced-motion: reduce` estiver ativo.
+- [ ] Migrar todos os timeouts restantes para uma timeline cancelavel por evento.
+- [ ] Criar telegraph claro do turno inimigo com preview stroke-by-stroke.
+- [ ] Fazer o feedback de sucesso, resistencia, escudo e cura acontecer inteiramente dentro da sequencia da magia.
+
+Criterio de aceite:
+- combate fica rapido o suficiente para manter flow;
+- inimigo parece presente e inteligivel;
+- feedback e bonito, mas nunca atrapalha a leitura;
+- finishers podem ser mais longos, casts comuns nao.
+
+Resultado:
+- delays principais foram encurtados: impacto do jogador, avanco de fase, telegraph inimigo, resolucao inimiga e derrota;
+- leitura do glifo passou a usar `turnPresentationTimings.glyphReadDelay`;
+- o feedback lateral de magia deixou de segurar varios segundos.
+- `turnPresentationDirector` agora escolhe timings normais, reduzidos ou rapidos por ambiente/debug.
+
+Pendencias:
+- calibrar timings com playtest;
+- garantir sincronia exata entre dano aplicado e frame de impacto.
+
+### Fase 21 - Magic VFX procedural por spellHash
+
+- [x] Criar `src/lib/ui/spellVfxSeed.ts`.
+- [x] Criar `src/lib/ui/spellVfxRecipes.ts`.
+- [x] Criar `src/components/MagicVfxLayer.tsx`.
+- [x] Usar `spellHash`, nome, sigilo primario e resultado para gerar assinatura visual deterministica.
+- [x] Implementar fallback inicial em CSS/SVG/React, sem PixiJS.
+- [x] Reaproveitar `PerfectGlyphPreview` para assinatura vetorial inicial do sigilo principal.
+- [x] Ligar trajetoria/impacto basico ao alvo visual: dano projeta para inimigo; cura/escudo retorna para self.
+- [ ] Implementar biblioteca completa de primitivas: line draw, ring pulse, ribbon, sparks, shockwave, residue, impact decal.
+- [ ] Avaliar PixiJS apenas para efeitos mais pesados.
+
+Criterio de aceite:
+- novas magias parecem autorais sem animacao manual por magia;
+- mesma magia sempre parece a mesma;
+- VFX comunica funcao e elemento;
+- performance continua aceitavel.
+
+Resultado:
+- criada camada procedural simples com seed deterministica e receita por tipo de resultado;
+- VFX aparece sobre a pagina ativa durante cast e respeita `prefers-reduced-motion`.
+- VFX agora inclui glyph preview vetorial e classe de alvo (`enemy`, `self`, `field`) para direcao visual.
+
+Pendencias:
+- adicionar replay vetorial real do glifo desenhado pelo jogador;
+- revisar acessibilidade de flashes antes de efeitos dramaticos.
+
+### Fase 22 - Unificacao de Guide, Grimoire e Codex
+
+- [ ] Criar `src/components/CodexBook.tsx`.
+- [ ] Unificar `GuidePanel`, `GrimoirePanel` e `CodexPanel` numa UI unica de grimorio.
+- [ ] Criar paginas de descoberta com replay do glifo, maestria, efeito e assinatura visual.
+- [ ] Criar paginas de tutorial dentro do mesmo livro, nao em superficies concorrentes.
+- [ ] Dar tratamento de carta/lamina para cada magia descoberta.
+
+Criterio de aceite:
+- o jogador entende que aprende, descobre e arquiva magia no mesmo objeto;
+- a colecao parece um TCG;
+- a progressao de maestria fica clara e desejavel.
+
+Pendencias:
+- decidir se paginas usam paginacao real ou rolagem interna por secao;
+- testar densidade de informacao de cada carta;
+- conectar replay do glifo ao historico real do jogador no futuro.
 
 ---
 

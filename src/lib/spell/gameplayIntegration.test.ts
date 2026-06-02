@@ -10,7 +10,7 @@ import { calculateSpellCardInkCost, simulateInkSpend } from "@/lib/spell/inkSimu
 import { compileSpellFromLegacyComponents } from "@/lib/spell/legacyGlyphAdapter";
 import { compileSpellFromStrokes } from "@/lib/spell/spellCompiler";
 import { drawingStrokesToRecognitionStrokes, hasPointerDynamics } from "@/lib/spell/strokeAdapter";
-import type { DrawingStroke, Entity, GlyphComponent, Point, SigilType } from "@/types/magic";
+import type { DrawingStroke, Entity, GlyphComponent, Point, SigilType, SignType } from "@/types/magic";
 import type { RecognitionStroke } from "@/types/recognition";
 
 const makeCircle = (
@@ -46,9 +46,10 @@ const makeComponent = (
   ...options,
 });
 
-const compileCard = (sigil: SigilType = "fire") => {
+const compileCard = (sigil: SigilType = "fire", signs: readonly SignType[] = []) => {
   const result = compileSpellFromLegacyComponents([
     makeComponent("sigil", { sigilType: sigil }),
+    ...signs.map((signType) => makeComponent("sign", { id: `sign-${signType}`, signType })),
     makeComponent("ring"),
   ], 92);
 
@@ -218,7 +219,7 @@ describe("Codex and SpellCard integration", () => {
   it("generates a SpellCard through catalog glyph ids", () => {
     const card = compileCard("fire");
 
-    expect(card.id).toMatch(/^spell_/);
+    expect(card.id).toMatch(/^formula_/);
     expect(card.componentTemplateIds).toEqual(expect.arrayContaining([
       "FRAME_CIRCLE_CONTAINMENT",
       "SOURCE_DOT",
@@ -241,6 +242,11 @@ describe("Codex and SpellCard integration", () => {
     ]);
     expect(card.name).not.toContain(" / ");
     expect(card.name).toBe("Projetil Igneo");
+    expect(card.formula.formulaHash).toBe(card.id);
+    expect(card.formula.castHash).toMatch(/^cast_/);
+    expect(card.effectProfile.form).toBe("direction");
+    expect(card.effectProfile.area).toBe("single");
+    expect(card.effectSummary).toContain("Projetil");
     expect(card.mandala).toBeDefined();
     expect(card.mandala?.symbols.filter((symbol) => symbol.isDrawn).map((symbol) => symbol.templateId)).toEqual([
       "FRAME_CIRCLE_CONTAINMENT",
@@ -261,28 +267,43 @@ describe("Codex and SpellCard integration", () => {
     const first = compileCard("fire");
     const second = compileCard("fire");
 
-    expect(first.mandala?.mandalaHash).toMatch(/^mandala_/);
+    expect(first.mandala?.formulaHash).toMatch(/^formula_/);
+    expect(first.mandala?.castHash).toMatch(/^cast_/);
+    expect(first.mandala?.mandalaHash).toMatch(/^cast_/);
+    expect(first.mandala?.formulaHash).toBe(second.mandala?.formulaHash);
+    expect(first.mandala?.castHash).toBe(second.mandala?.castHash);
     expect(first.mandala?.mandalaHash).toBe(second.mandala?.mandalaHash);
   });
 
-  it("does not record inferred defaults as Codex discoveries", () => {
+  it("records the complete formula but does not discover inferred defaults", () => {
     const card = compileCard("fire");
     const entries = recordSpellCardDiscovery([], card);
 
-    expect(entries[0].componentTemplateIds).toEqual([
+    expect(entries[0].componentTemplateIds).toEqual(expect.arrayContaining([
       "FRAME_CIRCLE_CONTAINMENT",
+      "SOURCE_DOT",
       "ELEMENT_IGNIS",
-    ]);
+      "ACTION_EMIT",
+      "FORM_PROJECTILE",
+      "TARGET_ENEMY",
+    ]));
     expect(entries[0].codexTemplateIds).toEqual([
       "FRAME_CIRCLE_CONTAINMENT",
       "ELEMENT_IGNIS",
     ]);
-    expect(entries[0].componentTemplateIds).not.toEqual(expect.arrayContaining([
+    expect(entries[0].drawnTemplateIds).toEqual([
+      "FRAME_CIRCLE_CONTAINMENT",
+      "ELEMENT_IGNIS",
+    ]);
+    expect(entries[0].defaultedTemplateIds).toEqual(expect.arrayContaining([
       "SOURCE_DOT",
       "ACTION_EMIT",
       "FORM_PROJECTILE",
       "TARGET_ENEMY",
     ]));
+    expect(entries[0].formulaHash).toBe(card.formula.formulaHash);
+    expect(entries[0].castHash).toBe(card.formula.castHash);
+    expect(entries[0].mandala?.formulaHash).toBe(card.formula.formulaHash);
   });
 
   it("allows active glyphs and blocks glyphs missing from a custom loadout", () => {
@@ -307,15 +328,41 @@ describe("Codex and SpellCard integration", () => {
     ], 92).ok).toBe(false);
   });
 
-  it("blocks recipes that are not equipped", () => {
+  it("does not use equipped recipes as a whitelist for synthesized formulas", () => {
     const card = compileCard("fire");
     const validation = validateSpellCardForLoadout(card, {
       ...defaultGrimoireLoadout,
       allowedRecipeIds: [],
     });
 
-    expect(validation.ok).toBe(false);
+    expect(validation.ok).toBe(true);
     expect(validation.recipeAllowed).toBe(false);
+  });
+
+  it("maps drawn forms into synthesized gameplay profiles", () => {
+    expect(compileCard("fire", ["rain"]).effectProfile).toMatchObject({
+      form: "rain",
+      area: "area",
+      target: "area",
+    });
+    expect(compileCard("fire", ["column"]).effectProfile).toMatchObject({
+      form: "column",
+      area: "line",
+    });
+    expect(compileCard("shadow", ["chain"]).effectProfile).toMatchObject({
+      form: "chain",
+      area: "single",
+    });
+    expect(compileCard("earth", ["shield_sign"]).effectProfile).toMatchObject({
+      form: "shield_sign",
+      area: "self",
+      target: "self",
+    });
+    expect(compileCard("nature", ["heal_sign"]).effectProfile).toMatchObject({
+      form: "heal_sign",
+      area: "self",
+      target: "self",
+    });
   });
 
   it("blocks a SpellCard when the reservoir cannot pay the final ink cost", () => {
@@ -334,6 +381,31 @@ describe("Codex and SpellCard integration", () => {
 
     expect(ink.ok).toBe(false);
     expect(ink.failureCode).toBe("insufficient_ink");
+  });
+
+  it("raises ink pressure when the mandala execution is unstable", () => {
+    const card = compileCard("fire");
+    const clean = calculateSpellCardInkCost({ card });
+    const unstableCard = {
+      ...card,
+      stability: 42,
+      formula: {
+        ...card.formula,
+        instability: 82,
+        circleQuality: {
+          closure: 45,
+          roundness: 38,
+          centeredness: 70,
+          smoothness: 44,
+          overall: 48,
+        },
+      },
+    };
+    const unstable = calculateSpellCardInkCost({ card: unstableCard });
+
+    expect(unstable.stability).toBeGreaterThan(clean.stability);
+    expect(unstable.risk).toBeGreaterThan(clean.risk);
+    expect(unstable.total).toBeGreaterThan(clean.total);
   });
 });
 

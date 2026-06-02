@@ -1627,6 +1627,44 @@
           66.0,
           55.0
         ]
+      ],
+      [
+        [
+          36.0,
+          67.0
+        ],
+        [
+          39.5,
+          64.0
+        ],
+        [
+          43.0,
+          67.0
+        ],
+        [
+          46.5,
+          70.0
+        ],
+        [
+          50.0,
+          67.0
+        ],
+        [
+          53.5,
+          64.0
+        ],
+        [
+          57.0,
+          67.0
+        ],
+        [
+          60.5,
+          70.0
+        ],
+        [
+          64.0,
+          67.0
+        ]
       ]
     ],
     "ports": [
@@ -1636,7 +1674,7 @@
     "topology_signature": {
       "loops": 1,
       "dominant_geometry": "drop_wave",
-      "open_strokes": 1,
+      "open_strokes": 2,
       "expected_intersections": 0,
       "corners_min": 0,
       "corners_max": 12
@@ -5657,6 +5695,46 @@
           68.0,
           50.0
         ]
+      ],
+      [
+        [
+          50,
+          18
+        ],
+        [
+          50,
+          8
+        ]
+      ],
+      [
+        [
+          50,
+          82
+        ],
+        [
+          50,
+          92
+        ]
+      ],
+      [
+        [
+          18,
+          50
+        ],
+        [
+          8,
+          50
+        ]
+      ],
+      [
+        [
+          82,
+          50
+        ],
+        [
+          92,
+          50
+        ]
       ]
     ],
     "ports": [
@@ -5664,8 +5742,8 @@
     ],
     "topology_signature": {
       "loops": 2,
-      "dominant_geometry": "concentric_aura",
-      "open_strokes": 0,
+      "dominant_geometry": "concentric_aura_rays",
+      "open_strokes": 4,
       "expected_intersections": 0,
       "corners_min": 0,
       "corners_max": 12

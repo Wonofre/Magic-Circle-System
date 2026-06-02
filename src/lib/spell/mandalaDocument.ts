@@ -1,5 +1,5 @@
 import { getRuneByTemplateId } from "@/data/magicOntology";
-import { createMandalaHash } from "@/lib/spell/mandalaHash";
+import { createCastHash, createFormulaHash } from "@/lib/spell/mandalaHash";
 import type { SemanticMarginResult } from "@/types/recognition";
 import type {
   CircleQuality,
@@ -104,8 +104,13 @@ export const buildMandalaDocumentFromSemanticResults = ({
     formulaReading,
   } as const;
 
+  const formulaHash = createFormulaHash(documentWithoutHash);
+  const castHash = createCastHash(documentWithoutHash);
+
   return {
     ...documentWithoutHash,
-    mandalaHash: createMandalaHash(documentWithoutHash),
+    formulaHash,
+    castHash,
+    mandalaHash: castHash,
   };
 };

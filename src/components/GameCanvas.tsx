@@ -49,6 +49,7 @@ export function GameCanvas({
   const animationRef = useRef<number>(0);
   const strokesRef = useRef<DrawingStroke[]>([]);
   const finalizingRef = useRef(false);
+  const finalizeIdleTimeoutRef = useRef<number | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
   const [glyphDebugEnabled] = useState(isGlyphDebugEnabled);
   const debugStrokes = useMemo(() => {
@@ -104,6 +105,10 @@ export function GameCanvas({
   const finalizeGlyph = useCallback((sourceStrokes: DrawingStroke[] = strokesRef.current) => {
     if (finalizingRef.current || sourceStrokes.length === 0) return false;
     finalizingRef.current = true;
+    if (finalizeIdleTimeoutRef.current !== null) {
+      window.clearTimeout(finalizeIdleTimeoutRef.current);
+      finalizeIdleTimeoutRef.current = null;
+    }
 
     const { components: finalComponents, precision } = analyzeGlyphFromStrokes(sourceStrokes, CENTER);
     const hasRing = finalComponents.some(component => component.type === 'ring');
@@ -120,9 +125,31 @@ export function GameCanvas({
     return true;
   }, [onGlyphComplete]);
 
+  const scheduleIdleFinalization = useCallback((sourceStrokes: DrawingStroke[]) => {
+    const hasDetectedRing = sourceStrokes.some((stroke) => {
+      const rawClosureDistance = stroke.rawClosureDistance ?? getClosureDistance(stroke.points);
+      return analyzeStroke(closeStrokeIfNear(stroke.points, 42), CENTER).isRing &&
+        rawClosureDistance < 42;
+    });
+
+    if (!hasDetectedRing || sourceStrokes.length < 2) return;
+
+    if (finalizeIdleTimeoutRef.current !== null) {
+      window.clearTimeout(finalizeIdleTimeoutRef.current);
+    }
+
+    finalizeIdleTimeoutRef.current = window.setTimeout(() => {
+      finalizeGlyph(strokesRef.current);
+    }, 1800);
+  }, [finalizeGlyph]);
+
   const startStroke = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDrawingEnabled || ringClosed || finalizingRef.current) return;
+    if (!isDrawingEnabled || finalizingRef.current) return;
     e.preventDefault();
+    if (finalizeIdleTimeoutRef.current !== null) {
+      window.clearTimeout(finalizeIdleTimeoutRef.current);
+      finalizeIdleTimeoutRef.current = null;
+    }
     if (inkAvailable <= MIN_DRAW_INK) {
       setFeedback('A tinta acabou. Espere o proximo turno.');
       setFeedbackColor('#67e8f9');
@@ -134,7 +161,7 @@ export function GameCanvas({
     setIsDrawing(true);
     setCurrentStroke([pos]);
     setFeedback('');
-  }, [isDrawingEnabled, ringClosed, inkAvailable, getPointerPoint]);
+  }, [isDrawingEnabled, inkAvailable, getPointerPoint]);
 
   const continueStroke = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawing || !isDrawingEnabled || finalizingRef.current) return;
@@ -225,11 +252,15 @@ export function GameCanvas({
     const analysis = analyzeStroke(closedStroke, CENTER);
     if (analysis.isRing) {
       setRingClosed(true);
-      setTimeout(() => finalizeGlyph(nextStrokes), 250);
+      setFeedback(nextStrokes.length > 1
+        ? 'Circulo detectado. Aguarde ou continue refinando.'
+        : 'Circulo detectado. Adicione glifos e chaves.');
+      setFeedbackColor('#88ff88');
     }
+    scheduleIdleFinalization(nextStrokes);
 
     setCurrentStroke([]);
-  }, [isDrawing, currentStroke, strokes, finalizeGlyph]);
+  }, [isDrawing, currentStroke, strokes, scheduleIdleFinalization]);
 
   const reset = useCallback(() => {
     setStrokes([]);
@@ -241,6 +272,10 @@ export function GameCanvas({
     setClosureProgress(0);
     activePointerIdRef.current = null;
     finalizingRef.current = false;
+    if (finalizeIdleTimeoutRef.current !== null) {
+      window.clearTimeout(finalizeIdleTimeoutRef.current);
+      finalizeIdleTimeoutRef.current = null;
+    }
   }, []);
 
   useEffect(() => {
@@ -264,18 +299,24 @@ export function GameCanvas({
       time += 0.016;
       ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
 
-      ctx.fillStyle = '#0f080c';
+      ctx.fillStyle = '#d7bb82';
       ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
 
       const grad = ctx.createRadialGradient(CENTER.x, CENTER.y, 20, CENTER.x, CENTER.y, 250);
-      grad.addColorStop(0, 'rgba(30, 15, 20, 1)');
-      grad.addColorStop(1, 'rgba(10, 5, 8, 1)');
+      grad.addColorStop(0, 'rgba(255, 238, 178, 0.52)');
+      grad.addColorStop(0.62, 'rgba(200, 150, 85, 0.22)');
+      grad.addColorStop(1, 'rgba(95, 48, 22, 0.18)');
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
 
+      ctx.fillStyle = 'rgba(82, 41, 18, 0.055)';
+      for (let y = 24; y < CANVAS_SIZE; y += 28) {
+        ctx.fillRect(28, y, CANVAS_SIZE - 56, 1);
+      }
+
       ctx.beginPath();
       ctx.arc(CENTER.x, CENTER.y, IDEAL_RADIUS, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(180, 140, 80, 0.12)';
+      ctx.strokeStyle = 'rgba(92, 53, 23, 0.22)';
       ctx.lineWidth = 1.5;
       ctx.setLineDash([6, 14]);
       ctx.stroke();
@@ -283,7 +324,7 @@ export function GameCanvas({
 
       ctx.beginPath();
       ctx.arc(CENTER.x, CENTER.y, 50, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(180, 140, 80, 0.08)';
+      ctx.strokeStyle = 'rgba(92, 53, 23, 0.16)';
       ctx.lineWidth = 1;
       ctx.stroke();
 
@@ -303,10 +344,10 @@ export function GameCanvas({
         for (let i = 1; i < stroke.points.length; i++) {
           ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
         }
-        ctx.strokeStyle = '#f3d779';
+        ctx.strokeStyle = '#7a461f';
         ctx.lineWidth = 4;
-        ctx.shadowColor = '#f3d779';
-        ctx.shadowBlur = 12;
+        ctx.shadowColor = glowColor;
+        ctx.shadowBlur = 10;
         ctx.stroke();
         ctx.shadowBlur = 0;
 
@@ -315,14 +356,14 @@ export function GameCanvas({
         for (let i = 1; i < stroke.points.length; i++) {
           ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
         }
-        ctx.strokeStyle = '#ffffff';
+        ctx.strokeStyle = '#f6dda0';
         ctx.lineWidth = 2;
         ctx.stroke();
       });
 
       if (currentStroke.length > 1) {
         const closeDist = currentStroke.length > 30 ? getClosureDistance(currentStroke) : Infinity;
-        const strokeColor = closeDist < 60 ? '#88ff88' : '#ffffff';
+        const strokeColor = closeDist < 60 ? '#2f7d42' : '#2d1b12';
 
         ctx.beginPath();
         ctx.moveTo(currentStroke[0].x, currentStroke[0].y);
@@ -342,14 +383,14 @@ export function GameCanvas({
           ctx.beginPath();
           ctx.arc(first.x, first.y, closeDist, 0, Math.PI * 2);
           const proximityAlpha = Math.max(0, 0.3 - closeDist * 0.005);
-          ctx.strokeStyle = `rgba(136, 255, 136, ${proximityAlpha})`;
+          ctx.strokeStyle = `rgba(47, 125, 66, ${proximityAlpha})`;
           ctx.lineWidth = 2;
           ctx.stroke();
 
           ctx.beginPath();
           ctx.moveTo(last.x, last.y);
           ctx.lineTo(first.x, first.y);
-          ctx.strokeStyle = `rgba(136, 255, 136, ${proximityAlpha * 0.5})`;
+          ctx.strokeStyle = `rgba(47, 125, 66, ${proximityAlpha * 0.5})`;
           ctx.lineWidth = 1;
           ctx.setLineDash([4, 4]);
           ctx.stroke();
@@ -360,7 +401,7 @@ export function GameCanvas({
       if (closureProgress > 0 && !ringClosed) {
         ctx.beginPath();
         ctx.arc(CENTER.x, CENTER.y, 200, -Math.PI / 2, -Math.PI / 2 + (closureProgress / 100) * Math.PI * 2);
-        ctx.strokeStyle = `rgba(136, 255, 136, ${closureProgress / 200})`;
+        ctx.strokeStyle = `rgba(47, 125, 66, ${closureProgress / 200})`;
         ctx.lineWidth = 3;
         ctx.stroke();
       }
@@ -368,10 +409,10 @@ export function GameCanvas({
       if (ringClosed) {
         ctx.beginPath();
         ctx.arc(CENTER.x, CENTER.y, 210, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(243, 215, 121, ${0.3 + Math.sin(time * 4) * 0.15})`;
+        ctx.strokeStyle = `rgba(122, 70, 31, ${0.42 + Math.sin(time * 4) * 0.12})`;
         ctx.lineWidth = 3;
-        ctx.shadowColor = '#f3d779';
-        ctx.shadowBlur = 15;
+        ctx.shadowColor = glowColor;
+        ctx.shadowBlur = 12;
         ctx.stroke();
         ctx.shadowBlur = 0;
       }
@@ -380,7 +421,7 @@ export function GameCanvas({
         const angle = (i / 8) * Math.PI * 2 + time * 0.2;
         const x = CENTER.x + Math.cos(angle) * 230;
         const y = CENTER.y + Math.sin(angle) * 230;
-        ctx.fillStyle = `rgba(180, 140, 80, ${0.15 + Math.sin(time + i) * 0.05})`;
+        ctx.fillStyle = `rgba(92, 53, 23, ${0.18 + Math.sin(time + i) * 0.05})`;
         ctx.font = '10px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -404,12 +445,12 @@ export function GameCanvas({
         ref={canvasRef}
         width={CANVAS_SIZE}
         height={CANVAS_SIZE}
-        className={`w-full rounded-2xl border-2 transition-all duration-300 ${
+        className={`w-full rounded-md border transition-all duration-300 ${
           ringClosed
-            ? 'border-amber-400 shadow-[0_0_40px_rgba(243,215,121,0.4)]'
+            ? 'border-[#7a461f] shadow-[0_0_28px_rgba(122,70,31,0.28)]'
             : isDrawingEnabled
-            ? 'border-amber-900/60 shadow-[0_0_20px_rgba(0,0,0,0.5)] hover:border-amber-700/80'
-            : 'border-gray-800 opacity-70'
+            ? 'border-[#8a592b]/50 shadow-[0_10px_30px_rgba(62,31,15,0.18)] hover:border-[#6f421c]/80'
+            : 'border-[#7a461f]/35 opacity-80'
         }`}
         style={{ aspectRatio: '1', touchAction: 'none', cursor: QUILL_CURSOR }}
         onPointerDown={startStroke}
@@ -421,9 +462,9 @@ export function GameCanvas({
 
       {feedback && (
         <div
-          className="absolute bottom-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all"
+          className="absolute bottom-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-sm text-sm font-medium whitespace-nowrap transition-all"
           style={{
-            backgroundColor: 'rgba(0,0,0,0.75)',
+            backgroundColor: 'rgba(49,31,18,0.86)',
             color: feedbackColor,
             textShadow: `0 0 8px ${feedbackColor}66`,
           }}
@@ -433,7 +474,7 @@ export function GameCanvas({
       )}
 
       {elementName && isDrawingEnabled && (
-        <div className="absolute top-3 left-3 px-2 py-1 rounded-lg text-xs bg-black/60 text-amber-300 border border-amber-800/50">
+        <div className="absolute top-3 left-3 px-2 py-1 rounded-sm text-xs bg-[#3b2114]/80 text-[#f5d98f] border border-[#7a461f]/50">
           {elementName}
         </div>
       )}

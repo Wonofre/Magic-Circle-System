@@ -66,6 +66,20 @@ const serializeCandidate = (candidate: CandidateLike): RecognitionTelemetryCandi
   rank: candidate.rank,
   confidence: roundMetric(candidate.confidence),
   meanDistance: roundMetric(candidate.meanDistance),
+  matchedVariant: candidate.matchedVariant,
+  contextScore: candidate.contextScore === undefined
+    ? undefined
+    : roundMetric(candidate.contextScore),
+  scoreBreakdown: candidate.scoreBreakdown
+    ? {
+        sequentialConfidence: roundMetric(candidate.scoreBreakdown.sequentialConfidence),
+        pointCloudConfidence: roundMetric(candidate.scoreBreakdown.pointCloudConfidence),
+        chamferDistance: roundMetric(candidate.scoreBreakdown.chamferDistance),
+        meanDistance: roundMetric(candidate.scoreBreakdown.meanDistance),
+        strokeCountPenalty: roundMetric(candidate.scoreBreakdown.strokeCountPenalty),
+        variantConfidence: roundMetric(candidate.scoreBreakdown.variantConfidence),
+      }
+    : undefined,
 });
 
 const collectFailureCodes = (input: RecognitionTelemetryInput): readonly string[] => {
@@ -90,7 +104,7 @@ const acceptedTemplateId = (
   decision: RecognitionTelemetryInput["decision"],
   semanticResults: readonly SemanticMarginResult[] | undefined,
 ): string | null => {
-  if (decision !== "accepted") return null;
+  if (decision !== "accepted" && decision !== "legacy_bridge_fallback") return null;
   return semanticResults?.find((semantic) => semantic.candidate)?.candidate?.template.id ?? null;
 };
 
@@ -113,6 +127,7 @@ export const createRecognitionTelemetryEvent = (
     decision: input.decision,
     acceptedTemplateId: acceptedTemplateId(input.decision, input.semanticResults),
     expectedGlyphId: input.context.expectedGlyphId,
+    fallbackUsed: input.fallbackUsed,
   };
 };
 

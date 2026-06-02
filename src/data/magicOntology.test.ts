@@ -12,6 +12,7 @@ import {
   getTemplateIdForLegacySigil,
   magicRunes,
 } from "@/data/magicOntology";
+import { activeLegacySigns } from "@/data/activeRuneCatalog";
 import { fallbackSpellRecipe, spellRecipes } from "@/data/spellRecipes";
 import { GLYPH_SEMANTIC_ROLES, type GlyphSemanticRole } from "@/types/glyphTemplates";
 import type { SigilType } from "@/types/magic";
@@ -81,6 +82,17 @@ describe("magic ontology", () => {
     expect(getTemplateIdForLegacySigil("thunder")).toBe("DERIVED_FULMEN");
     expect(getLegacySigilForTemplateId("DERIVED_GELU")).toBe("ice");
     expect(getLegacySigilForTemplateId("DERIVED_FULMEN")).toBe("thunder");
+  });
+
+  it("derives active legacy signs from ontology definitions", () => {
+    const ontologySigns = [
+      ...new Set(activeRuneDefinitions.flatMap((rune) => rune.legacySigns ?? [])),
+    ].sort();
+
+    expect([...activeLegacySigns].sort()).toEqual(ontologySigns);
+    expect(activeLegacySigns).toContain("rain");
+    expect(activeLegacySigns).toContain("shield_sign");
+    expect(activeLegacySigns).toContain("chain");
   });
 
   it("only marks compiler-safe templates as defaultable", () => {

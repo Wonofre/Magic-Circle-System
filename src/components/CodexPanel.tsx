@@ -1,12 +1,21 @@
 import { useMemo, useState } from "react";
 import { BookOpen, CheckCircle2, Circle, Droplets, Flame, Key, Shield, Sparkles, Swords, X } from "lucide-react";
-import { defaultGrimoireLoadout } from "@/lib/spell/codexStore";
+import { activeRuneDefinitions } from "@/data/magicOntology";
+import { defaultGrimoireLoadout, getAllowedGlyphIds } from "@/lib/spell/codexStore";
 import { getGlyphById } from "@/data/glyphTemplates";
-import { SIGILS, SIGNS } from "@/lib/magicSystem";
 import { PerfectGlyphPreview } from "@/components/PerfectGlyphPreview";
+import { TemplateGlyphMark, roleLayout } from "@/components/GlyphTemplatePreview";
+import {
+  getRuneNameForTemplate,
+  getTemplateRoleLabel,
+  kindLabels,
+  riskLabels,
+  targetLabels,
+} from "@/lib/ui/runeCatalogPresentation";
 import type { CodexSpellEntry, GrimoireLoadout } from "@/types/codex";
 import type { SigilType, SignType } from "@/types/magic";
-import type { GlyphSemanticRole, GlyphTemplate } from "@/types/glyphTemplates";
+import type { GlyphTemplate } from "@/types/glyphTemplates";
+import type { MandalaSymbol } from "@/types/mandala";
 
 interface CodexPanelProps {
   readonly entries: readonly CodexSpellEntry[];
@@ -23,12 +32,13 @@ const filterLabel: Record<CodexFilter, string> = {
   discovered: "Descobertas",
   practiced: "Praticadas",
   mastered: "Dominadas",
-  loadout: "Loadout",
+  loadout: "Regras",
 };
 
 const kindIcon = (kind: CodexSpellEntry["kind"]) => {
   if (kind === "defense") return <Shield className="w-4 h-4 text-sky-300" />;
   if (kind === "support") return <Sparkles className="w-4 h-4 text-emerald-300" />;
+  if (kind === "utility" || kind === "control") return <Sparkles className="w-4 h-4 text-violet-300" />;
   return <Swords className="w-4 h-4 text-red-300" />;
 };
 
@@ -49,80 +59,63 @@ const formatDate = (value: string): string =>
 const unique = <T,>(values: readonly T[]): readonly T[] => [...new Set(values)];
 
 const getEntryCodexTemplateIds = (entry: CodexSpellEntry): readonly string[] =>
-  entry.codexTemplateIds ?? entry.componentTemplateIds;
+  entry.codexTemplateIds ?? entry.drawnTemplateIds ?? entry.componentTemplateIds;
 
-const roleLayout: Record<GlyphSemanticRole, { x: number; y: number; size: number }> = {
-  container: { x: 40, y: 40, size: 72 },
-  source: { x: 40, y: 40, size: 13 },
-  connector: { x: 40, y: 40, size: 36 },
-  element: { x: 40, y: 39, size: 28 },
-  derived: { x: 40, y: 39, size: 28 },
-  action: { x: 23, y: 40, size: 19 },
-  form: { x: 57, y: 40, size: 19 },
-  target: { x: 40, y: 58, size: 17 },
-  defense: { x: 40, y: 57, size: 24 },
-  time: { x: 22, y: 22, size: 15 },
-  risk: { x: 58, y: 22, size: 15 },
-  ink: { x: 40, y: 22, size: 15 },
+const elementLabels: Record<SigilType, string> = {
+  fire: "Ignis",
+  water: "Aqua",
+  earth: "Terra",
+  wind: "Ventus",
+  light: "Lux",
+  ice: "Gelu",
+  shadow: "Umbra",
+  thunder: "Fulmen",
+  nature: "Vita",
+  void: "Vacuus",
 };
 
-const roleStrokeClass: Record<GlyphSemanticRole, string> = {
-  container: "text-amber-500",
-  source: "text-cyan-300",
-  connector: "text-amber-300/70",
-  element: "text-orange-300",
-  derived: "text-sky-300",
-  action: "text-red-300",
-  form: "text-purple-300",
-  target: "text-emerald-300",
-  defense: "text-sky-300",
-  time: "text-yellow-200",
-  risk: "text-red-400",
-  ink: "text-cyan-400",
-};
+const legacySignLabel = (sign: SignType): string =>
+  sign.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 
-const getGlyphBounds = (glyph: GlyphTemplate) => {
-  const points = glyph.strokes.flat();
-  const xs = points.map(([x]) => x);
-  const ys = points.map(([, y]) => y);
+const symbolLayout = (symbol: MandalaSymbol, glyph: GlyphTemplate) => {
+  if (!symbol.position || symbol.position.zone === "frame" || glyph.semantic_role === "container") {
+    return roleLayout.container;
+  }
+
+  const angle = (symbol.position.angle / 180) * Math.PI;
+  const distance = Math.min(33, Math.max(0, symbol.position.radius * 0.31));
+  const roleSize = roleLayout[glyph.semantic_role]?.size ?? 18;
+
   return {
-    minX: Math.min(...xs),
-    minY: Math.min(...ys),
-    maxX: Math.max(...xs),
-    maxY: Math.max(...ys),
+    x: 40 + Math.cos(angle) * distance,
+    y: 40 + Math.sin(angle) * distance,
+    size: Math.max(12, Math.min(roleSize, 26)),
   };
 };
 
-function TemplateGlyphMark({ glyph }: { readonly glyph: GlyphTemplate }) {
-  const bounds = getGlyphBounds(glyph);
-  const width = Math.max(1, bounds.maxX - bounds.minX);
-  const height = Math.max(1, bounds.maxY - bounds.minY);
-  const layout = roleLayout[glyph.semantic_role];
-  const scale = layout.size / Math.max(width, height);
-  const offsetX = layout.x - (width * scale) / 2;
-  const offsetY = layout.y - (height * scale) / 2;
-  const project = ([x, y]: readonly [number, number]) =>
-    `${offsetX + (x - bounds.minX) * scale},${offsetY + (y - bounds.minY) * scale}`;
-
-  return (
-    <g className={roleStrokeClass[glyph.semantic_role]}>
-      {glyph.strokes.map((stroke, index) => (
-        <polyline
-          key={`${glyph.id}-${index}`}
-          points={stroke.map(project).join(" ")}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={glyph.semantic_role === "container" ? 3.1 : 2.35}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity={glyph.semantic_role === "connector" ? 0.62 : 0.95}
-        />
-      ))}
-    </g>
-  );
-}
-
 function SpellTemplatePreview({ entry }: { readonly entry: CodexSpellEntry }) {
+  if (entry.mandala) {
+    const symbols = entry.mandala.symbols
+      .map((symbol) => ({ symbol, glyph: getGlyphById(symbol.templateId) }))
+      .filter((item): item is { readonly symbol: MandalaSymbol; readonly glyph: GlyphTemplate } => Boolean(item.glyph));
+
+    if (symbols.length > 0) {
+      return (
+        <svg viewBox="0 0 80 80" className="w-[72px] h-[72px] overflow-visible">
+          <rect x="4" y="4" width="72" height="72" rx="10" fill="rgba(0,0,0,0.14)" />
+          {symbols.map(({ symbol, glyph }) => (
+            <TemplateGlyphMark
+              key={`${entry.spellHash}-${symbol.id}`}
+              glyph={glyph}
+              layoutOverride={symbolLayout(symbol, glyph)}
+              opacity={symbol.isDefault ? 0.38 : 0.95}
+            />
+          ))}
+        </svg>
+      );
+    }
+  }
+
   const glyphs = getEntryCodexTemplateIds(entry)
     .map((id) => getGlyphById(id))
     .filter((glyph): glyph is GlyphTemplate => Boolean(glyph));
@@ -173,6 +166,9 @@ export function CodexPanel({
   ) as readonly SignType[];
   const discoveredGlyphIds = unique(entries.flatMap(getEntryCodexTemplateIds));
   const masteredCount = entries.filter((entry) => entry.mastery === "mastered").length;
+  const allowedGlyphIds = useMemo(() => getAllowedGlyphIds(loadout, entries), [entries, loadout]);
+  const allowedRunes = activeRuneDefinitions.filter((rune) => allowedGlyphIds.has(rune.templateId));
+  const lockedRunes = activeRuneDefinitions.filter((rune) => !allowedGlyphIds.has(rune.templateId));
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -183,7 +179,7 @@ export function CodexPanel({
             <div>
               <h2 className="text-xl font-bold text-amber-200">Codex</h2>
               <p className="text-xs text-amber-600/80">
-                {entries.length} magias por hash, {masteredCount} dominadas
+                {entries.length} formulas por hash, {masteredCount} dominadas
               </p>
             </div>
           </div>
@@ -210,29 +206,51 @@ export function CodexPanel({
 
         {filter === "loadout" && (
           <div className="p-4 border-b border-amber-900/30 bg-black/20">
-            <div className="grid grid-cols-3 gap-3 text-xs">
-              <div>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="rounded-lg border border-amber-900/25 bg-black/20 p-3">
                 <p className="text-amber-500 mb-2 flex items-center gap-1">
                   <Flame className="w-3 h-3" />
-                  Sigilos
+                  Glifos
                 </p>
-                <p className="text-amber-300/80">{loadout.knownGlyphIds.length} conhecidos</p>
+                <p className="text-amber-300/80">{allowedRunes.length} permitidos</p>
+                <p className="text-[10px] text-amber-700">{lockedRunes.length} fora do loadout</p>
               </div>
-              <div>
+              <div className="rounded-lg border border-amber-900/25 bg-black/20 p-3">
                 <p className="text-amber-500 mb-2 flex items-center gap-1">
                   <Key className="w-3 h-3" />
-                  Chaves
+                  Receitas
                 </p>
-                <p className="text-amber-300/80">{loadout.allowedRecipeIds.length} receitas</p>
+                <p className="text-amber-300/80">{loadout.allowedRecipeIds.length} equipadas</p>
+                <p className="text-[10px] text-amber-700">fallback improvisado ativo</p>
               </div>
-              <div>
+              <div className="rounded-lg border border-amber-900/25 bg-black/20 p-3">
                 <p className="text-amber-500 mb-2 flex items-center gap-1">
                   <Droplets className="w-3 h-3" />
                   Tintas
                 </p>
                 <p className="text-amber-300/80">{loadout.allowedInkInfusionIds.length || 1} base</p>
               </div>
+              <div className="rounded-lg border border-amber-900/25 bg-black/20 p-3">
+                <p className="text-amber-500 mb-2 flex items-center gap-1">
+                  <Shield className="w-3 h-3" />
+                  Risco
+                </p>
+                <p className="text-amber-300/80">{riskLabels[loadout.maxRiskLevel]}</p>
+                <p className="text-[10px] text-amber-700">bloqueia formulas acima disso</p>
+              </div>
             </div>
+            {lockedRunes.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {lockedRunes.map((rune) => (
+                  <span key={rune.id} className="text-[10px] bg-black/35 text-amber-500/80 px-2 py-0.5 rounded">
+                    {rune.name} / {getTemplateRoleLabel(rune.templateId)}
+                  </span>
+                ))}
+              </div>
+            )}
+            <p className="mt-3 text-[10px] text-amber-700">
+              O backend valida glifos conhecidos e risco. Receita equipada e exibida como sinal de compatibilidade, nao como bloqueio duro.
+            </p>
           </div>
         )}
 
@@ -269,25 +287,37 @@ export function CodexPanel({
                       <span className="text-[10px] bg-black/30 text-amber-400/80 px-1.5 py-0.5 rounded">
                         {masteryLabel[entry.mastery]}
                       </span>
+                      <span className="text-[10px] bg-black/30 text-amber-500/80 px-1.5 py-0.5 rounded">
+                        {kindLabels[entry.kind]} / {targetLabels[entry.target]}
+                      </span>
                     </div>
                     <p className="text-xs text-amber-600/80 mb-2">{entry.effectSummary}</p>
-                    <p className="text-[10px] text-amber-700 font-mono mb-2">{entry.spellHash}</p>
+                    <p className="text-[10px] text-amber-700 font-mono mb-2">
+                      {entry.formulaHash ?? entry.spellHash}
+                      {entry.castHash ? <span className="block text-amber-800/80">{entry.castHash}</span> : null}
+                    </p>
                     <div className="flex flex-wrap gap-1.5">
                       {(entry.legacySigils ?? []).map((sigil) => (
                         <span key={sigil} className="text-[10px] bg-black/35 text-amber-300/80 px-2 py-0.5 rounded">
-                          {SIGILS[sigil].namePt}
+                          {elementLabels[sigil]}
                         </span>
                       ))}
                       {(entry.legacySigns ?? []).map((sign) => (
                         <span key={sign} className="text-[10px] bg-purple-950/40 text-purple-300/80 px-2 py-0.5 rounded">
-                          {SIGNS[sign].namePt}
+                          {legacySignLabel(sign)}
                         </span>
                       ))}
                       {getEntryCodexTemplateIds(entry).length > 0 && !entry.legacySigils && getEntryCodexTemplateIds(entry).slice(0, 6).map((id) => (
                         <span key={id} className="text-[10px] bg-black/35 text-amber-300/80 px-2 py-0.5 rounded">
-                          {getGlyphById(id)?.display_name ?? id}
+                          {getGlyphById(id)?.display_name ?? getRuneNameForTemplate(id)}
+                          <span className="text-amber-600/80"> / {getTemplateRoleLabel(id)}</span>
                         </span>
                       ))}
+                      {entry.defaultedTemplateIds && entry.defaultedTemplateIds.length > 0 && (
+                        <span className="text-[10px] bg-sky-950/35 text-sky-300/75 px-2 py-0.5 rounded">
+                          defaults {entry.defaultedTemplateIds.length}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="text-right text-[10px] text-amber-500/80 whitespace-nowrap">
@@ -305,8 +335,8 @@ export function CodexPanel({
         <div className="p-3 border-t border-amber-900/30 bg-black/20">
           <div className="flex flex-wrap items-center gap-2 text-[10px] text-amber-600/80">
             <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-            <span>{discoveredGlyphIds.length} glifos de catalogo vistos</span>
-            <span>{discoveredSigils.length + discoveredSigns.length} simbolos legados vistos</span>
+            <span>{discoveredGlyphIds.length} glifos de catalogo registrados</span>
+            <span>{discoveredSigils.length + discoveredSigns.length} simbolos legados registrados</span>
           </div>
         </div>
       </div>

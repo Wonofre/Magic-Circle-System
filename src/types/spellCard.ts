@@ -7,6 +7,7 @@ import type {
 } from "@/types/recognition";
 import type { SpellGraph, SpellGraphCompileIssue } from "@/types/spellGraph";
 import type { MandalaDocument } from "@/types/mandala";
+import type { SpellEffectProfile, SpellFormula } from "@/types/spellFormula";
 import type { DiegeticFailureResolution } from "@/lib/recognizer/failureResolver";
 import type { RecognitionTelemetryEvent } from "@/types/telemetry";
 
@@ -35,6 +36,9 @@ export interface SpellCard {
   readonly stability: number;
   readonly potency: number;
   readonly target: SpellCardTarget;
+  readonly formula: SpellFormula;
+  readonly effectSummary: string;
+  readonly effectProfile: SpellEffectProfile;
   readonly recognitionOutcome: RecognitionOutcome;
   readonly drawnTemplateIds: readonly string[];
   readonly defaultedTemplateIds: readonly string[];

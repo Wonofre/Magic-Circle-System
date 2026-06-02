@@ -1,4 +1,4 @@
-import type { GlyphTemplate } from "@/types/glyphTemplates";
+import type { GlyphSemanticRole, GlyphTemplate } from "@/types/glyphTemplates";
 
 export interface RecognitionPoint {
   readonly x: number;
@@ -96,12 +96,44 @@ export interface ScribbleDetectionResult {
   readonly thresholds: ScribbleDetectorThresholds;
 }
 
+export type TemplateMatchVariant =
+  | "direct"
+  | "reverse_points"
+  | "reverse_strokes"
+  | "reverse_points_and_strokes"
+  | "rotate_-15"
+  | "rotate_-10"
+  | "rotate_10"
+  | "rotate_15";
+
+export type TemplateNormalizationMode = "bbox_0_100";
+
+export interface TemplateMatchScoreBreakdown {
+  readonly sequentialConfidence: number;
+  readonly pointCloudConfidence: number;
+  readonly chamferDistance: number;
+  readonly meanDistance: number;
+  readonly strokeCountPenalty: number;
+  readonly variantConfidence: number;
+}
+
+export interface TemplateMatcherContext {
+  readonly sourceBounds?: RecognitionBounds | null;
+  readonly frameBounds?: RecognitionBounds | null;
+  readonly zone?: "frame" | "core" | "inner" | "middle" | "outer" | "orbital";
+}
+
 export interface TemplateMatcherOptions {
   readonly topK?: number;
   readonly totalSamplePoints?: number;
   readonly maxMeanDistance?: number;
   readonly strokeCountPenalty?: number;
   readonly scribbleThresholds?: Partial<ScribbleDetectorThresholds>;
+  readonly allowedVariants?: readonly TemplateMatchVariant[];
+  readonly context?: TemplateMatcherContext;
+  readonly roleFilter?: readonly GlyphSemanticRole[];
+  readonly templateIdFilter?: readonly string[];
+  readonly strictTopology?: boolean;
 }
 
 export interface TemplateMatchCandidate {
@@ -112,6 +144,10 @@ export interface TemplateMatchCandidate {
   readonly meanDistance: number;
   readonly strokeCountDelta: number;
   readonly sampledPointCount: number;
+  readonly scoreBreakdown?: TemplateMatchScoreBreakdown;
+  readonly matchedVariant?: TemplateMatchVariant;
+  readonly contextScore?: number;
+  readonly normalizationMode?: TemplateNormalizationMode;
 }
 
 export interface TemplateMatchResult {
@@ -153,6 +189,9 @@ export interface TopologyValidationMetrics {
   readonly noiseStrokeCount: number;
   readonly noiseStrokeRatio: number;
   readonly approximateIntersectionCount: number;
+  readonly cornerCount: number;
+  readonly turnCount: number;
+  readonly exitMarkerCount: number;
   readonly averageClosureScore: number;
   readonly strokeMetrics: readonly TopologyStrokeMetric[];
 }

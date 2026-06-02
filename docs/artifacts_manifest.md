@@ -65,6 +65,37 @@ Uso:
 - buscar glifos por família;
 - visualizar SVG e spec técnico.
 
+### `docs/glyphs/svg_template_authoring.md`
+
+Guia operacional para criar novos glifos a partir de SVG.
+
+Contem:
+
+- formatos SVG aceitos pelo importador;
+- campos minimos de `GlyphTemplate`;
+- ordem recomendada para adicionar template, ontologia e testes;
+- notas de calibragem para `ELEMENT_AQUA` e `FORM_AURA`.
+
+### `src/lib/recognizer/svgGlyphTemplate.ts`
+
+Conversor de SVG para `GlyphTemplate`.
+
+Uso:
+
+- normalizar SVGs para strokes `0..100`;
+- facilitar criacao de novos simbolos sem editar pontos manualmente;
+- manter topologia e thresholds explicitos no catalogo.
+
+### `src/lib/recognizer/glyphTemplateCalibration.ts`
+
+Auditoria de reconhecimento dos glifos ativos.
+
+Uso:
+
+- testar cada glifo ativo com variacoes controladas;
+- medir top-1, runner-up, confianca, margem e topologia;
+- impedir regressao quando sigilos/chaves forem redesenhados.
+
 ### `docs/research/free_draw_magic_recognition.md`
 
 Resumo técnico da pesquisa sobre reconhecimento de desenho livre.

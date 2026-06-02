@@ -24,28 +24,7 @@ export const activeLegacySigils: readonly SigilType[] =
     .filter((sigil): sigil is SigilType => Boolean(sigil));
 
 export const activeLegacySigns: readonly SignType[] = [
-  "column",
-  "dispersion",
-  "levitation",
-  "direction",
-  "convergence",
-  "bolt",
-  "rain",
-  "enlarge",
-  "bird",
-  "weave",
-  "pull",
-  "crush",
-  "collection",
-  "billowing",
-  "float",
-  "shield_sign",
-  "heal_sign",
-  "reflect",
-  "chain",
-  "explosion",
-  "spiral",
-  "anchor",
+  ...new Set(activeRuneDefinitions.flatMap((rune) => rune.legacySigns ?? [])),
 ];
 
 export const activeRuneDisplayEntries: readonly ActiveRuneDisplayEntry[] =

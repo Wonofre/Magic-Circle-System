@@ -1,4 +1,5 @@
 import type { SigilType, SignType } from "@/types/magic";
+import type { MandalaDocument } from "@/types/mandala";
 import type { SpellCardKind, SpellCardTarget } from "@/types/spellCard";
 
 export type CodexMasteryState = "discovered" | "practiced" | "mastered";
@@ -9,7 +10,12 @@ export interface CodexSpellEntry {
   readonly kind: SpellCardKind;
   readonly target: SpellCardTarget;
   readonly codexTemplateIds?: readonly string[];
+  readonly drawnTemplateIds?: readonly string[];
+  readonly defaultedTemplateIds?: readonly string[];
   readonly componentTemplateIds: readonly string[];
+  readonly formulaHash?: string;
+  readonly castHash?: string;
+  readonly mandala?: MandalaDocument;
   readonly legacySigils?: readonly SigilType[];
   readonly legacySigns?: readonly SignType[];
   readonly effectSummary: string;

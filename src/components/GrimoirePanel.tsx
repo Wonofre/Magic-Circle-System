@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import type { SigilType, Spell } from '@/types/magic';
-import { SIGILS, SIGNS } from '@/lib/magicSystem';
 import { BookOpen, X, Star, Flame, Droplets, Mountain, Wind, Sun, Snowflake, Moon, CloudLightning, Leaf, Circle } from 'lucide-react';
 import { PerfectGlyphPreview } from '@/components/PerfectGlyphPreview';
 
@@ -22,11 +21,31 @@ const elementIcons: Record<string, React.ReactNode> = {
   void: <Circle className="w-4 h-4 text-violet-400" />,
 };
 
+const elementLabels: Record<SigilType, string> = {
+  fire: 'Ignis',
+  water: 'Aqua',
+  earth: 'Terra',
+  wind: 'Ventus',
+  light: 'Lux',
+  ice: 'Gelu',
+  shadow: 'Umbra',
+  thunder: 'Fulmen',
+  nature: 'Vita',
+  void: 'Vacuus',
+};
+
+const legacySignLabel = (sign: string): string =>
+  sign.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+
 type GrimoireFilter = 'all' | 'discovered' | SigilType;
-const filterOptions: GrimoireFilter[] = ['all', 'discovered', ...(Object.keys(SIGILS) as SigilType[])];
 
 export function GrimoirePanel({ spells, onClose }: GrimoirePanelProps) {
   const [filter, setFilter] = useState<GrimoireFilter>('all');
+  const filterOptions: GrimoireFilter[] = [
+    'all',
+    'discovered',
+    ...([...new Set(spells.flatMap((spell) => spell.glyphPattern.sigils))] as SigilType[]),
+  ];
 
   const filtered = spells.filter(s => {
     if (filter === 'all') return true;
@@ -44,8 +63,8 @@ export function GrimoirePanel({ spells, onClose }: GrimoirePanelProps) {
           <div className="flex items-center gap-3">
             <BookOpen className="w-6 h-6 text-amber-400" />
             <div>
-              <h2 className="text-xl font-bold text-amber-200">Grimório</h2>
-              <p className="text-xs text-amber-600/80">{discoveredCount}/{spells.length} magias descobertas</p>
+              <h2 className="text-xl font-bold text-amber-200">Catalogo Legado</h2>
+              <p className="text-xs text-amber-600/80">{discoveredCount}/{spells.length} magias antigas descobertas</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-amber-900/30 rounded-lg transition-colors">
@@ -65,7 +84,7 @@ export function GrimoirePanel({ spells, onClose }: GrimoirePanelProps) {
                   : 'bg-amber-950/50 text-amber-600/70 hover:bg-amber-900/40'
               }`}
             >
-              {f === 'all' ? 'Todas' : f === 'discovered' ? 'Descobertas' : SIGILS[f as keyof typeof SIGILS]?.namePt || f}
+              {f === 'all' ? 'Todas' : f === 'discovered' ? 'Descobertas' : elementLabels[f as SigilType] || f}
             </button>
           ))}
         </div>
@@ -117,12 +136,12 @@ export function GrimoirePanel({ spells, onClose }: GrimoirePanelProps) {
                           {spell.glyphPattern.sigils.map(s => (
                             <span key={s} className="flex items-center gap-1 text-xs bg-black/40 px-2 py-0.5 rounded-md">
                               {elementIcons[s]}
-                              <span className="text-amber-400/80">{SIGILS[s].namePt}</span>
+                              <span className="text-amber-400/80">{elementLabels[s]}</span>
                             </span>
                           ))}
                           {spell.glyphPattern.signs.map(s => (
                             <span key={s} className="text-xs bg-purple-950/40 text-purple-300/70 px-2 py-0.5 rounded-md border border-purple-800/30">
-                              {SIGNS[s].namePt}
+                              {legacySignLabel(s)}
                             </span>
                           ))}
                         </>
@@ -142,13 +161,13 @@ export function GrimoirePanel({ spells, onClose }: GrimoirePanelProps) {
                 {spell.discovered && (
                   <div className="flex gap-3 mt-2 pt-2 border-t border-amber-900/20">
                     {spell.damage > 0 && (
-                      <span className="text-xs text-red-400/80">⚔️ {spell.damage}</span>
+                      <span className="text-xs text-red-400/80">Dano {spell.damage}</span>
                     )}
                     {spell.healing > 0 && (
-                      <span className="text-xs text-emerald-400/80">💚 {spell.healing}</span>
+                      <span className="text-xs text-emerald-400/80">Cura {spell.healing}</span>
                     )}
                     {spell.shield > 0 && (
-                      <span className="text-xs text-blue-400/80">🛡️ {spell.shield}</span>
+                      <span className="text-xs text-blue-400/80">Escudo {spell.shield}</span>
                     )}
                   </div>
                 )}

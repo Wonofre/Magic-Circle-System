@@ -30,6 +30,7 @@ interface Segment {
 }
 
 const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
+const MIN_INTERSECTIONS_FOR_DENSITY_REJECTION = 10;
 
 const getSegments = (strokes: readonly RecognitionStroke[]): Segment[] => {
   const segments: Segment[] = [];
@@ -92,6 +93,15 @@ const areAdjacentSegments = (first: Segment, second: Segment): boolean =>
   first.strokeIndex === second.strokeIndex &&
   Math.abs(first.segmentIndex - second.segmentIndex) <= 1;
 
+const pointsShareLocation = (first: RecognitionPoint, second: RecognitionPoint): boolean =>
+  Math.hypot(first.x - second.x, first.y - second.y) < 0.001;
+
+const segmentsShareEndpoint = (first: Segment, second: Segment): boolean =>
+  pointsShareLocation(first.start, second.start) ||
+  pointsShareLocation(first.start, second.end) ||
+  pointsShareLocation(first.end, second.start) ||
+  pointsShareLocation(first.end, second.end);
+
 const countApproximateIntersections = (strokes: readonly RecognitionStroke[]): number => {
   const segments = getSegments(strokes);
   let intersections = 0;
@@ -101,7 +111,11 @@ const countApproximateIntersections = (strokes: readonly RecognitionStroke[]): n
       const first = segments[firstIndex];
       const second = segments[secondIndex];
 
-      if (!areAdjacentSegments(first, second) && segmentsIntersect(first, second)) {
+      if (
+        !areAdjacentSegments(first, second) &&
+        !segmentsShareEndpoint(first, second) &&
+        segmentsIntersect(first, second)
+      ) {
         intersections += 1;
       }
     }
@@ -210,7 +224,10 @@ export const detectScribble = (
 
   if (
     metrics.approximateIntersectionCount > activeThresholds.maxIntersectionCount ||
-    metrics.intersectionDensity > activeThresholds.maxIntersectionDensity
+    (
+      metrics.approximateIntersectionCount >= MIN_INTERSECTIONS_FOR_DENSITY_REJECTION &&
+      metrics.intersectionDensity > activeThresholds.maxIntersectionDensity
+    )
   ) {
     scribbleReasons.push("too_many_self_intersections");
   }

@@ -1,6 +1,8 @@
 import type { SigilType, SignType, Point } from '@/types/magic';
 import type { ReactNode } from 'react';
 import { getCanonicalSymbolStrokes, SIGILS } from '@/lib/magicSystem';
+import { getGlyphById } from '@/data/glyphTemplates';
+import { getTemplateIdForLegacySigil } from '@/data/magicOntology';
 
 type PreviewMode =
   | { mode: 'sigil'; type: SigilType }
@@ -52,6 +54,34 @@ function renderStrokePath(stroke: Point[], key: string, color: string, strokeWid
   );
 }
 
+function getCatalogStrokesForLegacySigil(type: SigilType): Point[][] | null {
+  const templateId = getTemplateIdForLegacySigil(type);
+  const glyph = templateId ? getGlyphById(templateId) : undefined;
+  if (!glyph) return null;
+
+  const points = glyph.strokes.flat();
+  const minX = Math.min(...points.map(([x]) => x));
+  const minY = Math.min(...points.map(([, y]) => y));
+  const maxX = Math.max(...points.map(([x]) => x));
+  const maxY = Math.max(...points.map(([, y]) => y));
+  const width = Math.max(1, maxX - minX);
+  const height = Math.max(1, maxY - minY);
+  const centerX = minX + width / 2;
+  const centerY = minY + height / 2;
+  const scale = Math.max(width, height) / 2;
+
+  return glyph.strokes.map((stroke) =>
+    stroke.map(([x, y]) => ({
+      x: (x - centerX) / scale,
+      y: (y - centerY) / scale,
+    })),
+  );
+}
+
+function getSigilPreviewStrokes(type: SigilType): Point[][] {
+  return getCatalogStrokesForLegacySigil(type) ?? getCanonicalSymbolStrokes('sigil', type);
+}
+
 export function PerfectGlyphPreview(props: PerfectGlyphPreviewProps & PreviewMode) {
   const { size = 84, className = '', showRing = false, strokeWidth = 4 } = props;
   const center = size / 2;
@@ -61,7 +91,7 @@ export function PerfectGlyphPreview(props: PerfectGlyphPreviewProps & PreviewMod
 
   if (props.mode === 'sigil') {
     const color = SIGILS[props.type].glowColor;
-    getCanonicalSymbolStrokes('sigil', props.type).forEach((stroke, index) => {
+    getSigilPreviewStrokes(props.type).forEach((stroke, index) => {
       paths.push(renderStrokePath(transformStroke(stroke, center, center, size * 0.25), `sigil-${index}`, color, strokeWidth));
     });
   }
@@ -81,7 +111,7 @@ export function PerfectGlyphPreview(props: PerfectGlyphPreviewProps & PreviewMod
             x: Math.cos((-Math.PI / 2) + sigilIndex * ((Math.PI * 2) / props.sigils.length)) * size * 0.11,
             y: Math.sin((-Math.PI / 2) + sigilIndex * ((Math.PI * 2) / props.sigils.length)) * size * 0.11,
           };
-      getCanonicalSymbolStrokes('sigil', sigil).forEach((stroke, strokeIndex) => {
+      getSigilPreviewStrokes(sigil).forEach((stroke, strokeIndex) => {
         paths.push(renderStrokePath(
           transformStroke(stroke, center + offset.x, center + offset.y, size * 0.13),
           `spell-sigil-${sigil}-${strokeIndex}`,

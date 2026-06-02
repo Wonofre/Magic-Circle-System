@@ -1,14 +1,15 @@
 import { getGlyphById } from "@/data/glyphTemplates";
 import { canTemplateBeDefaulted } from "@/data/magicOntology";
-import { fallbackSpellRecipe, spellRecipes } from "@/data/spellRecipes";
 import { resolveDiegeticFailure } from "@/lib/recognizer/failureResolver";
 import { compileSpellGraph, semanticResultsToGraphInputs } from "@/lib/recognizer/graphCompiler";
 import { evaluateSemanticMargin } from "@/lib/recognizer/semanticMargin";
 import { matchGlyphTemplates } from "@/lib/recognizer/templateMatcher";
 import { validateGlyphTopology } from "@/lib/recognizer/topologyValidator";
+import { interpretMandalaFormula } from "@/lib/spell/formulaInterpreter";
 import { buildMandalaDocumentFromSemanticResults } from "@/lib/spell/mandalaDocument";
 import { parseMandalaFromStrokes } from "@/lib/spell/mandalaParser";
 import { resolveSpellCardName } from "@/lib/spell/spellNameResolver";
+import { synthesizeSpellCardFields } from "@/lib/spell/spellSynthesizer";
 import { createRecognitionTelemetryEvent, cloneTelemetryStrokes } from "@/lib/telemetry/recognitionTelemetry";
 import type { GlyphTemplate } from "@/types/glyphTemplates";
 import type {
@@ -17,17 +18,11 @@ import type {
   TemplateMatchCandidate,
 } from "@/types/recognition";
 import type { MandalaDocumentBuildContext } from "@/lib/spell/mandalaDocument";
-import type { SpellCard, SpellCompileResult, SpellRecipe } from "@/types/spellCard";
-import type { SpellGraph, SpellGraphNode } from "@/types/spellGraph";
+import type { SpellCard, SpellCompileResult } from "@/types/spellCard";
+import type { SpellGraph } from "@/types/spellGraph";
 
 const CASTABLE_OUTCOMES = new Set(["cast_clean", "cast_weak", "partial"]);
 const DEFAULT_TEMPLATE_CONFIDENCE = 0.84;
-
-const clamp = (value: number, min: number, max: number): number =>
-  Math.max(min, Math.min(max, value));
-
-const graphRoles = (graph: SpellGraph) =>
-  new Set(graph.nodes.map((node) => node.semanticRole));
 
 const semanticRoles = (semanticResults: readonly SemanticMarginResult[]) =>
   new Set(
@@ -36,41 +31,11 @@ const semanticRoles = (semanticResults: readonly SemanticMarginResult[]) =>
       .filter((role): role is GlyphTemplate["semantic_role"] => Boolean(role)),
   );
 
-const findRecipeForGraph = (graph: SpellGraph): SpellRecipe => {
-  const roles = graphRoles(graph);
-  return (
-    spellRecipes.find((recipe) =>
-      recipe.requiredRoles.every((role) => roles.has(role)),
-    ) ?? fallbackSpellRecipe
-  );
-};
-
 const getPrimaryOutcome = (
   semanticResults: readonly SemanticMarginResult[],
 ): SpellCard["recognitionOutcome"] =>
   semanticResults.find((result) => CASTABLE_OUTCOMES.has(result.outcome))?.outcome ??
   "partial";
-
-const getAverageConfidence = (semanticResults: readonly SemanticMarginResult[]): number => {
-  if (semanticResults.length === 0) {
-    return 0;
-  }
-
-  return (
-    semanticResults.reduce((sum, result) => sum + result.confidence, 0) /
-    semanticResults.length
-  );
-};
-
-const hasNodeKind = (graph: SpellGraph, kind: SpellGraphNode["kind"]): boolean =>
-  graph.nodes.some((node) => node.kind === kind);
-
-const getCardKind = (graph: SpellGraph, recipe: SpellRecipe): SpellCard["kind"] => {
-  if (recipe.kind !== "utility") return recipe.kind;
-  if (hasNodeKind(graph, "defense")) return "defense";
-  if (hasNodeKind(graph, "action") || hasNodeKind(graph, "element")) return "attack";
-  return "utility";
-};
 
 const isDefaultedSemanticResult = (result: SemanticMarginResult): boolean =>
   result.reasons.some((reason) => reason.code === "spellgraph_safe_default");
@@ -80,7 +45,6 @@ const buildSpellCard = (
   semanticResults: readonly SemanticMarginResult[],
   mandalaContext?: MandalaDocumentBuildContext,
 ): SpellCard => {
-  const recipe = findRecipeForGraph(graph);
   const drawnSemanticResults = semanticResults.filter((result) => !isDefaultedSemanticResult(result));
   const defaultedSemanticResults = semanticResults.filter(isDefaultedSemanticResult);
   const drawnTemplateIds = drawnSemanticResults
@@ -89,22 +53,28 @@ const buildSpellCard = (
   const defaultedTemplateIds = defaultedSemanticResults
     .map((result) => result.candidate?.template.id)
     .filter((id): id is string => Boolean(id));
-  const averageConfidence = getAverageConfidence(drawnSemanticResults);
-  const componentCount = graph.nodes.filter((node) => node.family !== "default").length;
-  const stability = clamp(Math.round(averageConfidence * 100), 1, 100);
-  const potency = Math.round(recipe.basePower * (0.7 + averageConfidence * 0.6));
-  const inkCost = Math.max(1, recipe.baseInkCost + Math.max(0, componentCount - 4));
+  const mandala = buildMandalaDocumentFromSemanticResults({
+    graph,
+    semanticResults,
+    source: "freehand",
+    context: mandalaContext,
+  });
+  const formula = interpretMandalaFormula(mandala);
+  const synthesized = synthesizeSpellCardFields(graph, formula);
 
   return {
-    id: graph.spellHash,
-    name: resolveSpellCardName(graph, recipe),
-    kind: getCardKind(graph, recipe),
+    id: formula.formulaHash,
+    name: resolveSpellCardName(graph, synthesized.recipe),
+    kind: synthesized.kind,
     graph,
-    recipeId: recipe.id,
-    inkCost,
-    stability,
-    potency,
-    target: recipe.target,
+    recipeId: synthesized.recipe.id,
+    inkCost: synthesized.inkCost,
+    stability: synthesized.stability,
+    potency: synthesized.potency,
+    target: synthesized.target,
+    formula,
+    effectSummary: synthesized.effectSummary,
+    effectProfile: synthesized.effectProfile,
     recognitionOutcome: getPrimaryOutcome(semanticResults),
     drawnTemplateIds,
     defaultedTemplateIds,
@@ -112,12 +82,7 @@ const buildSpellCard = (
     componentTemplateIds: graph.nodes
       .filter((node) => node.family !== "default")
       .map((node) => node.templateId),
-    mandala: buildMandalaDocumentFromSemanticResults({
-      graph,
-      semanticResults,
-      source: "freehand",
-      context: mandalaContext,
-    }),
+    mandala,
   };
 };
 

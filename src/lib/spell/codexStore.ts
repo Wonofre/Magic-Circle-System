@@ -44,7 +44,7 @@ const masteryFromStats = (castCount: number, bestPrecision: number): CodexSpellE
 const sortKeys = (values: readonly string[]): readonly string[] => [...values].sort();
 
 const getEntryCodexTemplateIds = (entry: CodexSpellEntry): readonly string[] =>
-  entry.codexTemplateIds ?? entry.componentTemplateIds;
+  entry.codexTemplateIds ?? entry.drawnTemplateIds ?? entry.componentTemplateIds;
 
 export const createLegacySpellHash = (
   sigils: readonly SigilType[],
@@ -91,11 +91,16 @@ export const getAllowedGlyphIds = (
 };
 
 export const getSpellCardRiskLevel = (card: SpellCard): SemanticRiskLevel => {
+  if (card.formula.instability >= 70 || card.formula.modifiers.some((rune) => rune.role === "risk")) {
+    return "high";
+  }
+
   if (card.graph.nodes.some((node) => node.semanticRole === "risk" || node.recognitionOutcome === "backfire")) {
     return "high";
   }
 
   if (
+    card.formula.instability >= 34 ||
     card.graph.nodes.some((node) =>
       node.semanticRole === "ink" ||
       node.semanticRole === "action" ||
@@ -138,17 +143,6 @@ export const validateSpellCardForLoadout = (
       riskAllowed,
       riskLevel,
       message: `O Codex ainda nao conhece ${missingGlyphIds.length} glifo(s) desta formula.`,
-    };
-  }
-
-  if (!recipeAllowed) {
-    return {
-      ok: false,
-      missingGlyphIds,
-      recipeAllowed,
-      riskAllowed,
-      riskLevel,
-      message: "A receita desta magia nao esta equipada no Codex.",
     };
   }
 
@@ -209,7 +203,12 @@ const upsertCodexEntry = (
     kind: nextEntry.kind,
     target: nextEntry.target,
     codexTemplateIds: nextEntry.codexTemplateIds ?? existing.codexTemplateIds,
+    drawnTemplateIds: nextEntry.drawnTemplateIds ?? existing.drawnTemplateIds,
+    defaultedTemplateIds: nextEntry.defaultedTemplateIds ?? existing.defaultedTemplateIds,
     componentTemplateIds: nextEntry.componentTemplateIds,
+    formulaHash: nextEntry.formulaHash ?? existing.formulaHash,
+    castHash: nextEntry.castHash ?? existing.castHash,
+    mandala: nextEntry.mandala ?? existing.mandala,
     legacySigils: nextEntry.legacySigils ?? existing.legacySigils,
     legacySigns: nextEntry.legacySigns ?? existing.legacySigns,
     effectSummary: nextEntry.effectSummary,
@@ -274,8 +273,13 @@ export const recordSpellCardDiscovery = (
     kind: card.kind,
     target: card.target,
     codexTemplateIds: card.codexTemplateIds,
-    componentTemplateIds: card.codexTemplateIds,
-    effectSummary: `${card.kind} spell with ${card.potency} potency.`,
+    drawnTemplateIds: card.drawnTemplateIds,
+    defaultedTemplateIds: card.defaultedTemplateIds,
+    componentTemplateIds: card.componentTemplateIds,
+    formulaHash: card.formula.formulaHash,
+    castHash: card.formula.castHash,
+    mandala: card.mandala,
+    effectSummary: card.effectSummary,
     bestPrecision: card.stability,
     bestStability: card.stability,
     bestPotency: card.potency,

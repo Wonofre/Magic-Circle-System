@@ -35,5 +35,8 @@ export interface MandalaDocument {
   readonly circleQuality: CircleQuality;
   readonly symbols: readonly MandalaSymbol[];
   readonly formulaReading: string;
+  readonly formulaHash: string;
+  readonly castHash: string;
+  /** @deprecated Use castHash for execution identity or formulaHash for spell identity. */
   readonly mandalaHash: string;
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { CastResult } from '@/lib/spellEngine';
+import { motionDurations } from '@/lib/ui/motionTokens';
 import { Zap, Shield, Heart, Crosshair, Sparkles, TrendingUp, AlertTriangle, X } from 'lucide-react';
 import type { SigilType } from '@/types/magic';
 
@@ -36,14 +37,13 @@ export function SpellEffectDisplay({ result, onComplete }: SpellEffectProps) {
     const tReset = setTimeout(() => setDismissed(false), 0);
     const t0 = setTimeout(() => setVisible(true), 100);
 
-    // Auto dismiss after 3.5s
     const t1 = setTimeout(() => {
       setVisible(false);
-    }, 3500);
+    }, motionDurations.castHeavy);
 
     const t2 = setTimeout(() => {
       onComplete();
-    }, 4000);
+    }, motionDurations.castHeavy + motionDurations.short);
 
     return () => {
       clearTimeout(t0);
@@ -80,7 +80,7 @@ export function SpellEffectDisplay({ result, onComplete }: SpellEffectProps) {
       style={{
         transform: visible ? 'translateX(0) scale(1)' : 'translateX(110%) scale(0.85)',
         opacity: visible ? 1 : 0,
-        transition: 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease',
+        transition: `transform ${motionDurations.short}ms cubic-bezier(0.18, 0.84, 0.22, 1), opacity ${motionDurations.short}ms ease`,
         maxWidth: '280px',
         width: 'calc(100vw - 2rem)',
         pointerEvents: visible ? 'auto' : 'none',
@@ -194,7 +194,7 @@ export function SpellEffectDisplay({ result, onComplete }: SpellEffectProps) {
             className="h-full"
             style={{
               background: colors.glow,
-              animation: visible ? 'shrink-bar 3.4s linear forwards' : 'none',
+              animation: visible ? `shrink-bar ${motionDurations.castHeavy}ms linear forwards` : 'none',
             }}
           />
         </div>

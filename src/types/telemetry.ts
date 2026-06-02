@@ -11,6 +11,7 @@ export type RecognitionDecision =
   | "accepted"
   | "rejected"
   | "graph_invalid"
+  | "legacy_bridge_fallback"
   | "fixture_expected_reject";
 
 export interface RecognitionTelemetryContext {
@@ -27,6 +28,16 @@ export interface RecognitionTelemetryCandidate {
   readonly rank: number;
   readonly confidence: number;
   readonly meanDistance: number;
+  readonly matchedVariant?: string;
+  readonly contextScore?: number;
+  readonly scoreBreakdown?: {
+    readonly sequentialConfidence: number;
+    readonly pointCloudConfidence: number;
+    readonly chamferDistance: number;
+    readonly meanDistance: number;
+    readonly strokeCountPenalty: number;
+    readonly variantConfidence: number;
+  };
 }
 
 export interface RecognitionTelemetryEvent {
@@ -42,6 +53,7 @@ export interface RecognitionTelemetryEvent {
   readonly decision: RecognitionDecision;
   readonly acceptedTemplateId: string | null;
   readonly expectedGlyphId?: string;
+  readonly fallbackUsed?: "legacy_bridge";
 }
 
 export interface HardNegativeFixtureCase {
@@ -75,9 +87,16 @@ export interface RecognitionTelemetryInput {
   readonly failure?: SpellCompileFailure;
   readonly decision: RecognitionDecision;
   readonly context: RecognitionTelemetryContext;
+  readonly fallbackUsed?: "legacy_bridge";
 }
 
 export type CandidateLike = Pick<
   TemplateMatchCandidate,
-  "rank" | "confidence" | "meanDistance" | "template"
+  | "rank"
+  | "confidence"
+  | "meanDistance"
+  | "template"
+  | "matchedVariant"
+  | "contextScore"
+  | "scoreBreakdown"
 >;

@@ -17,6 +17,8 @@ const DEFAULT_MIN_STROKE_LENGTH = 2;
 const DEFAULT_NOISE_STROKE_LENGTH = 3;
 const DEFAULT_INTERSECTION_TOLERANCE = 1;
 const DEFAULT_MAX_NOISE_STROKE_RATIO = 0.35;
+const CORNER_ANGLE_THRESHOLD = 0.72;
+const TURN_ANGLE_THRESHOLD = 0.34;
 
 interface Segment {
   readonly start: RecognitionPoint;
@@ -142,6 +144,15 @@ const areAdjacentSegments = (first: Segment, second: Segment): boolean =>
   first.strokeIndex === second.strokeIndex &&
   Math.abs(first.segmentIndex - second.segmentIndex) <= 1;
 
+const pointsShareLocation = (first: RecognitionPoint, second: RecognitionPoint): boolean =>
+  Math.hypot(first.x - second.x, first.y - second.y) < 0.001;
+
+const segmentsShareEndpoint = (first: Segment, second: Segment): boolean =>
+  pointsShareLocation(first.start, second.start) ||
+  pointsShareLocation(first.start, second.end) ||
+  pointsShareLocation(first.end, second.start) ||
+  pointsShareLocation(first.end, second.end);
+
 const countApproximateIntersections = (strokes: readonly RecognitionStroke[]): number => {
   const segments = getSegments(strokes);
   let count = 0;
@@ -151,13 +162,97 @@ const countApproximateIntersections = (strokes: readonly RecognitionStroke[]): n
       const first = segments[firstIndex];
       const second = segments[secondIndex];
 
-      if (!areAdjacentSegments(first, second) && segmentsIntersect(first, second)) {
+      if (
+        !areAdjacentSegments(first, second) &&
+        !segmentsShareEndpoint(first, second) &&
+        segmentsIntersect(first, second)
+      ) {
         count += 1;
       }
     }
   }
 
   return count;
+};
+
+const angleBetweenSegments = (
+  first: RecognitionPoint,
+  middle: RecognitionPoint,
+  last: RecognitionPoint,
+): number => {
+  const ax = middle.x - first.x;
+  const ay = middle.y - first.y;
+  const bx = last.x - middle.x;
+  const by = last.y - middle.y;
+  const aLength = Math.hypot(ax, ay);
+  const bLength = Math.hypot(bx, by);
+
+  if (aLength < 0.001 || bLength < 0.001) {
+    return 0;
+  }
+
+  const dot = (ax * bx + ay * by) / (aLength * bLength);
+  return Math.acos(Math.max(-1, Math.min(1, dot)));
+};
+
+const countAngles = (
+  strokes: readonly RecognitionStroke[],
+  angleThreshold: number,
+): number => {
+  let count = 0;
+
+  for (const stroke of strokes) {
+    for (let index = 1; index < stroke.points.length - 1; index += 1) {
+      if (
+        angleBetweenSegments(
+          stroke.points[index - 1],
+          stroke.points[index],
+          stroke.points[index + 1],
+        ) >= angleThreshold
+      ) {
+        count += 1;
+      }
+    }
+
+    if (
+      stroke.points.length > 3 &&
+      pointsShareLocation(stroke.points[0], stroke.points[stroke.points.length - 1]) &&
+      angleBetweenSegments(
+        stroke.points[stroke.points.length - 2],
+        stroke.points[0],
+        stroke.points[1],
+      ) >= angleThreshold
+    ) {
+      count += 1;
+    }
+  }
+
+  return count;
+};
+
+const countExitMarkers = (strokes: readonly RecognitionStroke[]): number => {
+  const segments = getSegments(strokes);
+
+  return segments.filter((segment) => {
+    const length = distance(segment.start, segment.end);
+    if (length < 6) return false;
+
+    const horizontal = Math.abs(segment.end.x - segment.start.x) >=
+      Math.abs(segment.end.y - segment.start.y) * 1.6;
+    const vertical = Math.abs(segment.end.y - segment.start.y) >=
+      Math.abs(segment.end.x - segment.start.x) * 1.6;
+    const nearOuterBand =
+      segment.start.x < 18 ||
+      segment.start.x > 82 ||
+      segment.start.y < 18 ||
+      segment.start.y > 82 ||
+      segment.end.x < 18 ||
+      segment.end.x > 82 ||
+      segment.end.y < 18 ||
+      segment.end.y > 82;
+
+    return nearOuterBand && (horizontal || vertical);
+  }).length;
 };
 
 const getMetrics = (
@@ -192,6 +287,9 @@ const getMetrics = (
     noiseStrokeCount,
     noiseStrokeRatio: strokes.length === 0 ? 0 : noiseStrokeCount / strokes.length,
     approximateIntersectionCount: countApproximateIntersections(cleanStrokes),
+    cornerCount: countAngles(cleanStrokes, CORNER_ANGLE_THRESHOLD),
+    turnCount: countAngles(cleanStrokes, TURN_ANGLE_THRESHOLD),
+    exitMarkerCount: countExitMarkers(cleanStrokes),
     averageClosureScore,
     strokeMetrics,
   };
@@ -278,6 +376,54 @@ export const validateGlyphTopology = (
         `Expected about ${expected.expected_intersections} intersection(s), found ${metrics.approximateIntersectionCount}.`,
         expected.expected_intersections,
         metrics.approximateIntersectionCount,
+      ),
+    );
+  }
+
+  if (expected.corners_min !== undefined) {
+    checks.push(
+      buildCheck(
+        "corners_min",
+        metrics.cornerCount >= expected.corners_min,
+        `Expected at least ${expected.corners_min} corner(s), found ${metrics.cornerCount}.`,
+        expected.corners_min,
+        metrics.cornerCount,
+      ),
+    );
+  }
+
+  if (expected.corners_max !== undefined) {
+    checks.push(
+      buildCheck(
+        "corners_max",
+        metrics.cornerCount <= expected.corners_max,
+        `Expected at most ${expected.corners_max} corner(s), found ${metrics.cornerCount}.`,
+        expected.corners_max,
+        metrics.cornerCount,
+      ),
+    );
+  }
+
+  if (expected.turns_min !== undefined) {
+    checks.push(
+      buildCheck(
+        "turns_min",
+        metrics.turnCount >= expected.turns_min,
+        `Expected at least ${expected.turns_min} turn(s), found ${metrics.turnCount}.`,
+        expected.turns_min,
+        metrics.turnCount,
+      ),
+    );
+  }
+
+  if (expected.requires_exit_marker) {
+    checks.push(
+      buildCheck(
+        "exit_marker",
+        metrics.exitMarkerCount > 0,
+        `Expected an exit marker, found ${metrics.exitMarkerCount}.`,
+        true,
+        metrics.exitMarkerCount > 0,
       ),
     );
   }

@@ -12,7 +12,14 @@ import type { GlyphSemanticRole } from "@/types/glyphTemplates";
 
 const DEFAULT_SEVERE_CONFIDENCE_GAP = 0.2;
 const DEFAULT_WEAK_TOPOLOGY_OUTCOME: RecognitionOutcome = "cast_weak";
-const CRITICAL_TOPOLOGY_CHECKS = new Set(["loops", "open_strokes", "closure_required"]);
+const CRITICAL_TOPOLOGY_CHECKS = new Set([
+  "loops",
+  "open_strokes",
+  "closure_required",
+  "corners_min",
+  "turns_min",
+  "exit_marker",
+]);
 const HIGH_RISK_ROLES: readonly GlyphSemanticRole[] = [
   "risk",
   "ink",
@@ -185,6 +192,20 @@ export const evaluateSemanticMargin = (
   }
 
   if (matchResult.semanticMargin < minSemanticMargin) {
+    const highConfidenceAmbiguityThreshold = Math.min(0.92, minConfidence + 0.14);
+
+    if (confidence >= highConfidenceAmbiguityThreshold) {
+      return buildResult("partial", matchResult, candidate, topology, [
+        ...baseReasons,
+        makeReason(
+          "semantic_margin_below_threshold_high_confidence",
+          `Semantic margin ${matchResult.semanticMargin.toFixed(3)} is below required ${minSemanticMargin.toFixed(3)}, but confidence ${confidence.toFixed(3)} is high enough for a partial cast.`,
+          "warning",
+        ),
+        ...topologyReasons,
+      ]);
+    }
+
     return buildResult("miscast", matchResult, candidate, topology, [
       ...baseReasons,
       makeReason(

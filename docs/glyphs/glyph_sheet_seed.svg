@@ -13,7 +13,7 @@
     <g id="CHANNEL_LINE"><path class="glyph" d="M18 50 L82 50"/></g>
     <g id="CHANNEL_JAGGED"><path class="glyph" d="M15 60 L30 38 L45 60 L60 38 L75 60 L88 44"/></g>
     <g id="ELEMENT_IGNIS"><path class="glyph" d="M50 18 L68 63 L50 82 L32 63 L50 18"/><path class="glyph" d="M50 30 L59 58 L50 68 L41 58 L50 30"/></g>
-    <g id="ELEMENT_AQUA"><path class="glyph" d="M50 14 L72 48 L63 78 L50 88 L37 78 L28 48 L50 14"/><path class="glyph" d="M34 55 L42 50 L50 55 L58 60 L66 55"/></g>
+    <g id="ELEMENT_AQUA"><path class="glyph" d="M50 14 L72 48 L63 78 L50 88 L37 78 L28 48 L50 14"/><path class="glyph" d="M34 55 L42 50 L50 55 L58 60 L66 55"/><path class="glyph" d="M36 67 L39.5 64 L43 67 L46.5 70 L50 67 L53.5 64 L57 67 L60.5 70 L64 67"/></g>
     <g id="ELEMENT_VENTUS"><path class="glyph" d="M18 36 L34 29 L50 36 L66 43 L82 36"/><path class="glyph" d="M24 52 L38 46 L52 52 L66 58 L78 52"/><path class="glyph" d="M30 68 L43 64 L56 68 L70 72"/></g>
     <g id="ELEMENT_TERRA"><path class="glyph" d="M50 18 L78 50 L50 82 L22 50 L50 18"/><path class="glyph" d="M30 70 L70 70"/></g>
     <g id="ELEMENT_LUX"><path class="glyph" d="M60 50 L57 57 L50 60 L43 57 L40 50 L43 43 L50 40 L57 43 L60 50"/><path class="glyph" d="M50 18 L50 32 M50 68 L50 82 M18 50 L32 50 M68 50 L82 50 M28 28 L38 38 M72 28 L62 38 M28 72 L38 62 M72 72 L62 62"/></g>

@@ -96,15 +96,20 @@ export function calculateLegacySpellInkCost(input: LegacyInkCostInput): InkCostB
 }
 
 export function calculateSpellCardInkCost(input: SpellCardInkCostInput): InkCostBreakdown {
-  const stabilityPenalty = Math.max(0, Math.round((1 - input.card.stability) * 4));
-  const risk = input.card.recognitionOutcome === "backfire" ? 4 : input.card.recognitionOutcome === "cast_weak" ? 1 : 0;
+  const stabilityPenalty = Math.max(0, Math.round((100 - input.card.stability) / 18));
+  const formulaRisk = input.card.formula.modifiers.some((rune) => rune.role === "risk") ? 2 : 0;
+  const instabilityRisk = input.card.formula.instability >= 70 ? 3 : input.card.formula.instability >= 40 ? 1 : 0;
+  const risk = Math.max(
+    formulaRisk + instabilityRisk,
+    input.card.recognitionOutcome === "backfire" ? 4 : input.card.recognitionOutcome === "cast_weak" ? 1 : 0,
+  );
   const infusion = getInfusionModifier(input.infusions);
   const base = Math.max(1, input.card.inkCost);
   const total = Math.max(1, Math.round(base + stabilityPenalty + risk + infusion));
 
   return {
     base,
-    complexity: Math.max(0, input.card.componentTemplateIds.length - 3),
+    complexity: Math.max(0, Math.round(input.card.formula.complexity - 3)),
     stability: stabilityPenalty,
     risk,
     infusion,

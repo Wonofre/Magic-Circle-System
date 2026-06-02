@@ -19,12 +19,24 @@ const hashString = (value: string): string => {
     hash = Math.imul(hash, 0x01000193);
   }
 
-  return `mandala_${(hash >>> 0).toString(16).padStart(8, "0")}`;
+  return (hash >>> 0).toString(16).padStart(8, "0");
 };
 
-export const getMandalaCanonicalShape = (input: MandalaHashInput): string =>
+export const getMandalaFormulaShape = (input: MandalaHashInput): string =>
   JSON.stringify({
     version: input.version,
+    symbols: input.symbols.map((symbol) => ({
+      templateId: symbol.templateId,
+      role: symbol.role,
+      isDefault: symbol.isDefault,
+    })),
+    formulaReading: input.formulaReading,
+  });
+
+export const getMandalaCastShape = (input: MandalaHashInput): string =>
+  JSON.stringify({
+    version: input.version,
+    source: input.source,
     circleQuality: {
       closure: bucketScore(input.circleQuality.closure),
       roundness: bucketScore(input.circleQuality.roundness),
@@ -49,5 +61,11 @@ export const getMandalaCanonicalShape = (input: MandalaHashInput): string =>
     formulaReading: input.formulaReading,
   });
 
-export const createMandalaHash = (input: MandalaHashInput): string =>
-  hashString(getMandalaCanonicalShape(input));
+export const createFormulaHash = (input: MandalaHashInput): string =>
+  `formula_${hashString(getMandalaFormulaShape(input))}`;
+
+export const createCastHash = (input: MandalaHashInput): string =>
+  `cast_${hashString(getMandalaCastShape(input))}`;
+
+/** @deprecated Use createCastHash or createFormulaHash. */
+export const createMandalaHash = createCastHash;
