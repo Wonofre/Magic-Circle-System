@@ -1152,6 +1152,8 @@ canvas {
 
 @media (prefers-reduced-motion: reduce) {
   .magic-vfx-stage, .magic-vfx-core, .magic-vfx-ink-bloom, .magic-vfx-ink-residual,
+  .magic-vfx-texture, .magic-vfx-texture-bloom, .magic-vfx-texture-burst,
+  .magic-vfx-texture-impact, .magic-vfx-texture-seal,
   .magic-vfx-glyph, .magic-vfx-mandala, .magic-vfx-trace, .magic-vfx-ring,
   .magic-vfx-particle, .magic-vfx-spark, .magic-vfx-impact, .magic-vfx-seal-flash,
   .magic-vfx-sigil-burst, .magic-vfx-sigil-core, .magic-vfx-key-flash,
