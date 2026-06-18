@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BookOpen,
   Circle,
@@ -140,6 +140,14 @@ export function CodexBook({
     { id: "grimoire", label: "Grimorio" },
     { id: "discoveries", label: "Descobertas" },
   ];
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
 
   return (
     <div className="wha-modal-overlay">
