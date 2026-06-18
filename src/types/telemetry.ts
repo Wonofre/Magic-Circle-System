@@ -1,4 +1,5 @@
 import type {
+  ProbabilisticRecognitionResult,
   RecognitionStroke,
   SemanticMarginResult,
   TemplateMatchCandidate,
@@ -10,8 +11,7 @@ import type { SpellCompileFailure } from "@/types/spellCard";
 export type RecognitionDecision =
   | "accepted"
   | "rejected"
-  | "graph_invalid"
-  | "legacy_bridge_fallback"
+  | "formula_invalid"
   | "fixture_expected_reject";
 
 export interface RecognitionTelemetryContext {
@@ -53,7 +53,32 @@ export interface RecognitionTelemetryEvent {
   readonly decision: RecognitionDecision;
   readonly acceptedTemplateId: string | null;
   readonly expectedGlyphId?: string;
-  readonly fallbackUsed?: "legacy_bridge";
+  readonly model?: {
+    readonly status: ProbabilisticRecognitionResult["modelStatus"];
+    readonly version?: string;
+    readonly provider?: ProbabilisticRecognitionResult["provider"];
+    readonly latencyMs: number;
+    readonly fallbackUsed: boolean;
+    readonly error?: string;
+  };
+  readonly regions?: readonly {
+    readonly id: string;
+    readonly sourceIndexes: readonly number[];
+    readonly rejected: boolean;
+    readonly rejectionReason?: string;
+    readonly candidates: readonly {
+      readonly templateId: string;
+      readonly rank: number;
+      readonly confidence: number;
+      readonly semanticMargin: number;
+      readonly confidenceThreshold: number;
+      readonly semanticMarginThreshold: number;
+      readonly passesConfidenceThreshold: boolean;
+      readonly passesSemanticMarginThreshold: boolean;
+      readonly source: string;
+      readonly acceptedByClassThreshold: boolean;
+    }[];
+  }[];
 }
 
 export interface HardNegativeFixtureCase {
@@ -87,7 +112,7 @@ export interface RecognitionTelemetryInput {
   readonly failure?: SpellCompileFailure;
   readonly decision: RecognitionDecision;
   readonly context: RecognitionTelemetryContext;
-  readonly fallbackUsed?: "legacy_bridge";
+  readonly probabilistic?: ProbabilisticRecognitionResult;
 }
 
 export type CandidateLike = Pick<

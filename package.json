@@ -9,7 +9,12 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "ml:generate": "uv run --project ml glyph-ml-generate",
+    "ml:train": "uv run --project ml glyph-ml-train",
+    "ml:export": "uv run --project ml glyph-ml-export",
+    "ml:verify": "uv run --project ml glyph-ml-verify",
+    "ml:smoke:web": "node scripts/ml-browser-smoke.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -47,6 +52,7 @@
     "input-otp": "^1.4.2",
     "lucide-react": "^0.562.0",
     "next-themes": "^0.4.6",
+    "onnxruntime-web": "^1.23.2",
     "react": "^19.2.0",
     "react-day-picker": "^9.13.0",
     "react-dom": "^19.2.0",
@@ -73,6 +79,7 @@
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
     "kimi-plugin-inspect-react": "^1.0.3",
+    "playwright-core": "^1.55.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.19",
     "tailwindcss-animate": "^1.0.7",

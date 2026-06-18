@@ -1,10 +1,12 @@
 import { getGlyphById } from "@/data/glyphTemplates";
-import { getTemplateIdForLegacySigil } from "@/data/magicOntology";
-import { compileSpellGraph } from "@/lib/recognizer/graphCompiler";
+import { activeRuneDefinitions } from "@/data/magicOntology";
+import { parseMandalaV2FromStrokes } from "@/lib/recognizerV2/mandalaParserV2";
 import { renderEnemySpellStrokes } from "@/lib/spell/enemyStrokeRenderer";
+import { buildFormulaGraphV2 } from "@/lib/spellV2/formulaGraphV2";
+import { compileMagicFormulaV2 } from "@/lib/spellV2/formulaCompilerV2";
 import type { Entity } from "@/types/magic";
+import type { ElementSigilId, FormulaGraphV2 } from "@/types/magicFormulaV2";
 import type { RecognitionStroke } from "@/types/recognition";
-import type { SpellGraph } from "@/types/spellGraph";
 
 export type EnemySpellProfile =
   | "apprentice"
@@ -23,8 +25,8 @@ export interface EnemySpellPlan {
   readonly effectText: string;
   readonly expectedInkCost: number;
   readonly expectedPower: number;
-  readonly graph: SpellGraph | null;
-  readonly graphIssues: readonly string[];
+  readonly graph: FormulaGraphV2 | null;
+  readonly formulaIssues: readonly string[];
   readonly strokes: readonly RecognitionStroke[];
 }
 
@@ -34,11 +36,11 @@ export interface EnemySpellAIOptions {
 }
 
 const PROFILE_NOISE: Record<EnemySpellProfile, number> = {
-  apprentice: 1.65,
-  aggressive: 1.1,
-  defensive: 0.95,
-  control: 0.8,
-  master: 0.38,
+  apprentice: 0.72,
+  aggressive: 0.58,
+  defensive: 0.46,
+  control: 0.4,
+  master: 0.18,
 };
 
 const getRoundFromEnemy = (enemy: Entity): number => {
@@ -62,8 +64,8 @@ export const getEnemySpellProfile = (enemy: Entity): EnemySpellProfile => {
 
   if (round >= 10) return "master";
   if (enemy.hp < enemy.maxHp * 0.32) return "aggressive";
-  if (enemy.element === "shadow" || enemy.element === "void") return "control";
-  if (enemy.element === "earth" || enemy.element === "water" || enemy.element === "ice") return "defensive";
+  if (enemy.element === "UMBRA" || enemy.element === "MENS") return "control";
+  if (enemy.element === "TERRA" || enemy.element === "AQUA" || enemy.element === "GELU") return "defensive";
   if (round <= 2) return "apprentice";
   return "aggressive";
 };
@@ -81,8 +83,14 @@ const chooseIntent = (
   return "attack";
 };
 
+const elementTemplateIds = new Map<ElementSigilId, string>(
+  activeRuneDefinitions.flatMap((rune) =>
+    rune.binding.type === "sigil" ? [[rune.binding.sigilId, rune.templateId] as const] : [],
+  ),
+);
+
 const getElementTemplateId = (enemy: Entity): string =>
-  enemy.element ? getTemplateIdForLegacySigil(enemy.element) ?? "ELEMENT_UMBRA" : "ELEMENT_UMBRA";
+  enemy.element ? elementTemplateIds.get(enemy.element) ?? "ELEMENT_UMBRA" : "ELEMENT_UMBRA";
 
 const getTemplateIdsForIntent = (
   enemy: Entity,
@@ -90,21 +98,20 @@ const getTemplateIdsForIntent = (
   profile: EnemySpellProfile,
 ): readonly string[] => {
   const frame = profile === "master" ? "FRAME_DOUBLE_SEAL" : "FRAME_CIRCLE_CONTAINMENT";
-  const source = profile === "apprentice" ? "SOURCE_DOT" : "SOURCE_DOUBLE";
   const element = getElementTemplateId(enemy);
 
   switch (intent) {
     case "defense":
-      return [frame, source, element, "ACTION_CONTAIN", "DEFENSE_SHIELD", "TARGET_SELF"];
+      return [frame, element, "ACTION_CONTAIN", "DEFENSE_SHIELD"];
     case "recover":
-      return [frame, source, "ELEMENT_VITA", "ACTION_RESTORE", "FORM_AURA", "TARGET_SELF"];
+      return [frame, "ELEMENT_VITA", "ACTION_RESTORE", "FORM_AURA"];
     case "control":
-      return [frame, source, element, "ACTION_SEAL", "FORM_CHAIN", "TARGET_ENEMY"];
+      return [frame, element, "ACTION_SEAL", "FORM_CHAIN"];
     case "desperate":
-      return [frame, source, element, "ACTION_EMIT", "FORM_BEAM", "TARGET_ENEMY", "RISK_BACKFLOW"];
+      return [frame, element, "ACTION_EMIT", "FORM_BEAM", "RISK_BACKFLOW"];
     case "attack":
     default:
-      return [frame, source, element, "ACTION_EMIT", "FORM_PROJECTILE", "TARGET_ENEMY"];
+      return [frame, element, "ACTION_EMIT", "FORM_PROJECTILE"];
   }
 };
 
@@ -133,7 +140,7 @@ const getEffectText = (
 
   switch (intent) {
     case "defense":
-      return `${enemy.name} desenha ${style} uma barreira ligada ao proprio alvo.`;
+      return `${enemy.name} desenha ${style} uma barreira ao redor de si.`;
     case "recover":
       return `${enemy.name} costura uma aura de recuperacao ${style}.`;
     case "control":
@@ -173,18 +180,13 @@ export const chooseEnemySpellPlan = (
   const intent = chooseIntent(enemy, opponent, profile);
   const templateIds = getTemplateIdsForIntent(enemy, intent, profile);
   const templates = templateIds.map((id) => getGlyphById(id)).filter((template) => template !== undefined);
-  const graphResult = compileSpellGraph(
-    templates.map((template) => ({
-      template,
-      confidence: profile === "apprentice" ? 0.72 : profile === "master" ? 0.96 : 0.86,
-      recognitionOutcome: profile === "apprentice" ? "cast_weak" : "cast_clean",
-    })),
-  );
   const seed = options.seed ?? hashSeed(`${enemy.id}:${opponent.id}:${options.turn ?? 0}:${templateIds.join("|")}`);
   const strokes = renderEnemySpellStrokes(templates, {
     seed,
     noise: PROFILE_NOISE[profile],
   });
+  const formula = compileMagicFormulaV2(parseMandalaV2FromStrokes(strokes));
+  const graph = formula.validity === "invalid" ? null : buildFormulaGraphV2(formula);
 
   return {
     profile,
@@ -194,8 +196,8 @@ export const chooseEnemySpellPlan = (
     effectText: getEffectText(enemy, intent, profile),
     expectedInkCost: intent === "desperate" ? 4 : intent === "attack" || intent === "control" ? 3 : 2,
     expectedPower: estimatePower(intent, profile),
-    graph: graphResult.ok ? graphResult.graph : null,
-    graphIssues: graphResult.issues.map((issue) => issue.message),
+    graph,
+    formulaIssues: formula.issues.map((issue) => issue.code),
     strokes,
   };
 };

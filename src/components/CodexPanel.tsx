@@ -3,19 +3,15 @@ import { BookOpen, CheckCircle2, Circle, Droplets, Flame, Key, Shield, Sparkles,
 import { activeRuneDefinitions } from "@/data/magicOntology";
 import { defaultGrimoireLoadout, getAllowedGlyphIds } from "@/lib/spell/codexStore";
 import { getGlyphById } from "@/data/glyphTemplates";
-import { PerfectGlyphPreview } from "@/components/PerfectGlyphPreview";
-import { TemplateGlyphMark, roleLayout } from "@/components/GlyphTemplatePreview";
 import {
   getRuneNameForTemplate,
+  getRuneBindingLabel,
   getTemplateRoleLabel,
   kindLabels,
   riskLabels,
-  targetLabels,
 } from "@/lib/ui/runeCatalogPresentation";
 import type { CodexSpellEntry, GrimoireLoadout } from "@/types/codex";
-import type { SigilType, SignType } from "@/types/magic";
-import type { GlyphTemplate } from "@/types/glyphTemplates";
-import type { MandalaSymbol } from "@/types/mandala";
+import type { MagicFormulaV2, MagicPointV2 } from "@/types/magicFormulaV2";
 
 interface CodexPanelProps {
   readonly entries: readonly CodexSpellEntry[];
@@ -35,17 +31,17 @@ const filterLabel: Record<CodexFilter, string> = {
   loadout: "Regras",
 };
 
+const masteryLabel: Record<CodexSpellEntry["mastery"], string> = {
+  discovered: "descoberta",
+  practiced: "praticada",
+  mastered: "dominada",
+};
+
 const kindIcon = (kind: CodexSpellEntry["kind"]) => {
   if (kind === "defense") return <Shield className="w-4 h-4 text-sky-300" />;
   if (kind === "support") return <Sparkles className="w-4 h-4 text-emerald-300" />;
   if (kind === "utility" || kind === "control") return <Sparkles className="w-4 h-4 text-violet-300" />;
   return <Swords className="w-4 h-4 text-red-300" />;
-};
-
-const masteryLabel: Record<CodexSpellEntry["mastery"], string> = {
-  discovered: "descoberta",
-  practiced: "praticada",
-  mastered: "dominada",
 };
 
 const formatDate = (value: string): string =>
@@ -61,88 +57,69 @@ const unique = <T,>(values: readonly T[]): readonly T[] => [...new Set(values)];
 const getEntryCodexTemplateIds = (entry: CodexSpellEntry): readonly string[] =>
   entry.codexTemplateIds ?? entry.drawnTemplateIds ?? entry.componentTemplateIds;
 
-const elementLabels: Record<SigilType, string> = {
-  fire: "Ignis",
-  water: "Aqua",
-  earth: "Terra",
-  wind: "Ventus",
-  light: "Lux",
-  ice: "Gelu",
-  shadow: "Umbra",
-  thunder: "Fulmen",
-  nature: "Vita",
-  void: "Vacuus",
-};
-
-const legacySignLabel = (sign: SignType): string =>
-  sign.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
-
-const symbolLayout = (symbol: MandalaSymbol, glyph: GlyphTemplate) => {
-  if (!symbol.position || symbol.position.zone === "frame" || glyph.semantic_role === "container") {
-    return roleLayout.container;
-  }
-
-  const angle = (symbol.position.angle / 180) * Math.PI;
-  const distance = Math.min(33, Math.max(0, symbol.position.radius * 0.31));
-  const roleSize = roleLayout[glyph.semantic_role]?.size ?? 18;
-
+const projectFormulaPoint = (formula: MagicFormulaV2, point: MagicPointV2) => {
+  const circle = formula.castingCircle;
+  if (!circle) return { x: point.x, y: point.y };
+  const scale = 42 / Math.max(1, circle.radius);
   return {
-    x: 40 + Math.cos(angle) * distance,
-    y: 40 + Math.sin(angle) * distance,
-    size: Math.max(12, Math.min(roleSize, 26)),
+    x: 50 + (point.x - circle.center.x) * scale,
+    y: 50 + (point.y - circle.center.y) * scale,
   };
 };
 
-function SpellTemplatePreview({ entry }: { readonly entry: CodexSpellEntry }) {
-  if (entry.mandala) {
-    const symbols = entry.mandala.symbols
-      .map((symbol) => ({ symbol, glyph: getGlyphById(symbol.templateId) }))
-      .filter((item): item is { readonly symbol: MandalaSymbol; readonly glyph: GlyphTemplate } => Boolean(item.glyph));
-
-    if (symbols.length > 0) {
-      return (
-        <svg viewBox="0 0 80 80" className="w-[72px] h-[72px] overflow-visible">
-          <rect x="4" y="4" width="72" height="72" rx="10" fill="rgba(0,0,0,0.14)" />
-          {symbols.map(({ symbol, glyph }) => (
-            <TemplateGlyphMark
-              key={`${entry.spellHash}-${symbol.id}`}
-              glyph={glyph}
-              layoutOverride={symbolLayout(symbol, glyph)}
-              opacity={symbol.isDefault ? 0.38 : 0.95}
-            />
-          ))}
-        </svg>
-      );
-    }
-  }
-
-  const glyphs = getEntryCodexTemplateIds(entry)
-    .map((id) => getGlyphById(id))
-    .filter((glyph): glyph is GlyphTemplate => Boolean(glyph));
-  const orderedGlyphs = [
-    ...glyphs.filter((glyph) => glyph.semantic_role === "container"),
-    ...glyphs.filter((glyph) => glyph.semantic_role === "connector"),
-    ...glyphs.filter((glyph) => glyph.semantic_role === "source"),
-    ...glyphs.filter((glyph) => glyph.semantic_role === "element" || glyph.semantic_role === "derived"),
-    ...glyphs.filter((glyph) => glyph.semantic_role === "action"),
-    ...glyphs.filter((glyph) => glyph.semantic_role === "form"),
-    ...glyphs.filter((glyph) => glyph.semantic_role === "defense"),
-    ...glyphs.filter((glyph) => glyph.semantic_role === "target"),
-    ...glyphs.filter((glyph) => glyph.semantic_role === "time" || glyph.semantic_role === "risk" || glyph.semantic_role === "ink"),
-  ];
-
-  if (orderedGlyphs.length === 0) {
-    return <Circle className="w-8 h-8 text-amber-700" />;
-  }
+function FormulaPreviewV2({ formula }: { readonly formula: MagicFormulaV2 }) {
+  const color = formula.visual.elementColor;
+  const entityCenters = new Map<string, MagicPointV2>([
+    ...formula.sigils.map((sigil) => [sigil.id, sigil.center] as const),
+    ...formula.keys.map((key) => [key.id, key.center] as const),
+    ...(formula.sigilContainment ? [[formula.sigilContainment.id, formula.sigilContainment.center] as const] : []),
+  ]);
 
   return (
-    <svg viewBox="0 0 80 80" className="w-[72px] h-[72px] overflow-visible">
-      <rect x="4" y="4" width="72" height="72" rx="10" fill="rgba(0,0,0,0.14)" />
-      {orderedGlyphs.map((glyph, index) => (
-        <TemplateGlyphMark key={`${entry.spellHash}-${glyph.id}-${index}`} glyph={glyph} />
-      ))}
+    <svg viewBox="0 0 100 100" className="w-[72px] h-[72px] overflow-visible">
+      <rect x="4" y="4" width="92" height="92" rx="8" fill="rgba(0,0,0,0.14)" />
+      <circle cx="50" cy="50" r="42" fill="none" stroke={color} strokeWidth="2.2" opacity="0.75" />
+      {formula.sigilContainment && (
+        <circle cx="50" cy="50" r={Math.max(8, formula.sigilContainment.radius / Math.max(1, formula.castingCircle?.radius ?? 1) * 42)} fill="none" stroke={color} strokeWidth="1" opacity="0.34" />
+      )}
+      {formula.channels.map((channel) => {
+        const from = entityCenters.get(channel.fromId);
+        const to = entityCenters.get(channel.toId);
+        if (!from || !to) return null;
+        const a = projectFormulaPoint(formula, from);
+        const b = projectFormulaPoint(formula, to);
+        const control = channel.arcCenter ? projectFormulaPoint(formula, channel.arcCenter) : { x: 50, y: 50 };
+        return (
+          <path
+            key={channel.id}
+            d={`M ${a.x.toFixed(2)} ${a.y.toFixed(2)} Q ${control.x.toFixed(2)} ${control.y.toFixed(2)} ${b.x.toFixed(2)} ${b.y.toFixed(2)}`}
+            fill="none"
+            stroke={color}
+            strokeWidth={channel.geometry === "invalid_straight" ? 0.8 : 1.5}
+            opacity={channel.geometry === "invalid_straight" ? 0.38 : 0.72}
+          />
+        );
+      })}
+      {formula.sigils.map((sigil) => {
+        const point = projectFormulaPoint(formula, sigil.center);
+        return <circle key={sigil.id} cx={point.x} cy={point.y} r="4.2" fill={color} opacity="0.92" />;
+      })}
+      {formula.keys.map((key) => {
+        const point = projectFormulaPoint(formula, key.center);
+        return (
+          <g key={key.id}>
+            <circle cx={point.x} cy={point.y} r="3.4" fill="rgba(0,0,0,0.55)" stroke={color} strokeWidth="1.2" />
+            {key.scope === "dormant" && <circle cx={point.x} cy={point.y} r="5.8" fill="none" stroke="#ef4444" strokeWidth="0.8" />}
+          </g>
+        );
+      })}
     </svg>
   );
+}
+
+function SpellTemplatePreview({ entry }: { readonly entry: CodexSpellEntry }) {
+  if (entry.formulaV2) return <FormulaPreviewV2 formula={entry.formulaV2} />;
+  return <Circle className="w-8 h-8 text-amber-700" />;
 }
 
 export function CodexPanel({
@@ -158,12 +135,6 @@ export function CodexPanel({
     return entries.filter((entry) => entry.mastery === filter);
   }, [entries, filter]);
 
-  const discoveredSigils = unique(
-    entries.flatMap((entry) => entry.legacySigils ?? []),
-  ) as readonly SigilType[];
-  const discoveredSigns = unique(
-    entries.flatMap((entry) => entry.legacySigns ?? []),
-  ) as readonly SignType[];
   const discoveredGlyphIds = unique(entries.flatMap(getEntryCodexTemplateIds));
   const masteredCount = entries.filter((entry) => entry.mastery === "mastered").length;
   const allowedGlyphIds = useMemo(() => getAllowedGlyphIds(loadout, entries), [entries, loadout]);
@@ -177,9 +148,9 @@ export function CodexPanel({
           <div className="flex items-center gap-3">
             <BookOpen className="w-6 h-6 text-amber-400" />
             <div>
-              <h2 className="text-xl font-bold text-amber-200">Codex</h2>
+              <h2 className="text-xl font-bold text-amber-200">Codex V2</h2>
               <p className="text-xs text-amber-600/80">
-                {entries.length} formulas por hash, {masteredCount} dominadas
+                {entries.length} formulas v2, {masteredCount} dominadas
               </p>
             </div>
           </div>
@@ -218,10 +189,10 @@ export function CodexPanel({
               <div className="rounded-lg border border-amber-900/25 bg-black/20 p-3">
                 <p className="text-amber-500 mb-2 flex items-center gap-1">
                   <Key className="w-3 h-3" />
-                  Receitas
+                  Regras v2
                 </p>
-                <p className="text-amber-300/80">{loadout.allowedRecipeIds.length} equipadas</p>
-                <p className="text-[10px] text-amber-700">fallback improvisado ativo</p>
+                <p className="text-amber-300/80">ligacoes entre chaves devem ser curvas</p>
+                <p className="text-[10px] text-amber-700">efeitos, campos e dissipacao estao ativos</p>
               </div>
               <div className="rounded-lg border border-amber-900/25 bg-black/20 p-3">
                 <p className="text-amber-500 mb-2 flex items-center gap-1">
@@ -236,21 +207,9 @@ export function CodexPanel({
                   Risco
                 </p>
                 <p className="text-amber-300/80">{riskLabels[loadout.maxRiskLevel]}</p>
-                <p className="text-[10px] text-amber-700">bloqueia formulas acima disso</p>
+                <p className="text-[10px] text-amber-700">beleza nao substitui uma formula completa</p>
               </div>
             </div>
-            {lockedRunes.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {lockedRunes.map((rune) => (
-                  <span key={rune.id} className="text-[10px] bg-black/35 text-amber-500/80 px-2 py-0.5 rounded">
-                    {rune.name} / {getTemplateRoleLabel(rune.templateId)}
-                  </span>
-                ))}
-              </div>
-            )}
-            <p className="mt-3 text-[10px] text-amber-700">
-              O backend valida glifos conhecidos e risco. Receita equipada e exibida como sinal de compatibilidade, nao como bloqueio duro.
-            </p>
           </div>
         )}
 
@@ -262,23 +221,10 @@ export function CodexPanel({
             </div>
           ) : (
             filteredEntries.map((entry) => (
-              <div
-                key={entry.spellHash}
-                className="p-3 rounded-lg border bg-amber-950/30 border-amber-800/30"
-              >
+              <div key={entry.spellHash} className="p-3 rounded-lg border bg-amber-950/30 border-amber-800/30">
                 <div className="flex items-start justify-between gap-3">
                   <div className="w-20 h-20 rounded-lg bg-black/30 border border-amber-800/25 flex items-center justify-center flex-shrink-0">
-                    {entry.legacySigils || entry.legacySigns ? (
-                      <PerfectGlyphPreview
-                        mode="spell"
-                        sigils={[...(entry.legacySigils ?? [])]}
-                        signs={[...(entry.legacySigns ?? [])]}
-                        size={72}
-                        strokeWidth={3.2}
-                      />
-                    ) : (
-                      <SpellTemplatePreview entry={entry} />
-                    )}
+                    <SpellTemplatePreview entry={entry} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
@@ -288,36 +234,26 @@ export function CodexPanel({
                         {masteryLabel[entry.mastery]}
                       </span>
                       <span className="text-[10px] bg-black/30 text-amber-500/80 px-1.5 py-0.5 rounded">
-                        {kindLabels[entry.kind]} / {targetLabels[entry.target]}
+                        {kindLabels[entry.kind]}
                       </span>
                     </div>
                     <p className="text-xs text-amber-600/80 mb-2">{entry.effectSummary}</p>
+                    {entry.formulaV2 && (
+                      <p className="text-[10px] text-amber-700 mb-2">
+                        simetria {Math.round(entry.formulaV2.symmetry.overall * 100)}% / canais {entry.formulaV2.channels.length} / {entry.formulaV2.visual.rank}
+                      </p>
+                    )}
                     <p className="text-[10px] text-amber-700 font-mono mb-2">
                       {entry.formulaHash ?? entry.spellHash}
-                      {entry.castHash ? <span className="block text-amber-800/80">{entry.castHash}</span> : null}
+                      {entry.visualHash ? <span className="block text-amber-800/80">{entry.visualHash}</span> : null}
                     </p>
                     <div className="flex flex-wrap gap-1.5">
-                      {(entry.legacySigils ?? []).map((sigil) => (
-                        <span key={sigil} className="text-[10px] bg-black/35 text-amber-300/80 px-2 py-0.5 rounded">
-                          {elementLabels[sigil]}
-                        </span>
-                      ))}
-                      {(entry.legacySigns ?? []).map((sign) => (
-                        <span key={sign} className="text-[10px] bg-purple-950/40 text-purple-300/80 px-2 py-0.5 rounded">
-                          {legacySignLabel(sign)}
-                        </span>
-                      ))}
-                      {getEntryCodexTemplateIds(entry).length > 0 && !entry.legacySigils && getEntryCodexTemplateIds(entry).slice(0, 6).map((id) => (
+                      {getEntryCodexTemplateIds(entry).slice(0, 8).map((id) => (
                         <span key={id} className="text-[10px] bg-black/35 text-amber-300/80 px-2 py-0.5 rounded">
                           {getGlyphById(id)?.display_name ?? getRuneNameForTemplate(id)}
-                          <span className="text-amber-600/80"> / {getTemplateRoleLabel(id)}</span>
+                          <span className="text-amber-600/80"> / {getTemplateRoleLabel(id)} / {getRuneBindingLabel(id)}</span>
                         </span>
                       ))}
-                      {entry.defaultedTemplateIds && entry.defaultedTemplateIds.length > 0 && (
-                        <span className="text-[10px] bg-sky-950/35 text-sky-300/75 px-2 py-0.5 rounded">
-                          defaults {entry.defaultedTemplateIds.length}
-                        </span>
-                      )}
                     </div>
                   </div>
                   <div className="text-right text-[10px] text-amber-500/80 whitespace-nowrap">
@@ -335,8 +271,7 @@ export function CodexPanel({
         <div className="p-3 border-t border-amber-900/30 bg-black/20">
           <div className="flex flex-wrap items-center gap-2 text-[10px] text-amber-600/80">
             <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-            <span>{discoveredGlyphIds.length} glifos de catalogo registrados</span>
-            <span>{discoveredSigils.length + discoveredSigns.length} simbolos legados registrados</span>
+            <span>{discoveredGlyphIds.length} glifos de catalogo registrados em formulas v2</span>
           </div>
         </div>
       </div>

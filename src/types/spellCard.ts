@@ -5,15 +5,12 @@ import type {
   TemplateMatchResult,
   TopologyValidationResult,
 } from "@/types/recognition";
-import type { SpellGraph, SpellGraphCompileIssue } from "@/types/spellGraph";
-import type { MandalaDocument } from "@/types/mandala";
 import type { SpellEffectProfile, SpellFormula } from "@/types/spellFormula";
+import type { FormulaGraphV2, FormulaIssueV2, MagicFormulaV2 } from "@/types/magicFormulaV2";
 import type { DiegeticFailureResolution } from "@/lib/recognizer/failureResolver";
 import type { RecognitionTelemetryEvent } from "@/types/telemetry";
 
 export type SpellCardKind = "attack" | "defense" | "support" | "control" | "utility";
-
-export type SpellCardTarget = "enemy" | "self" | "ally" | "area" | "default_enemy";
 
 export interface SpellRecipe {
   readonly id: string;
@@ -23,19 +20,17 @@ export interface SpellRecipe {
   readonly optionalRoles?: readonly GlyphSemanticRole[];
   readonly basePower: number;
   readonly baseInkCost: number;
-  readonly target: SpellCardTarget;
 }
 
 export interface SpellCard {
   readonly id: string;
   readonly name: string;
   readonly kind: SpellCardKind;
-  readonly graph: SpellGraph;
+  readonly graph: FormulaGraphV2;
   readonly recipeId: string;
   readonly inkCost: number;
   readonly stability: number;
   readonly potency: number;
-  readonly target: SpellCardTarget;
   readonly formula: SpellFormula;
   readonly effectSummary: string;
   readonly effectProfile: SpellEffectProfile;
@@ -44,18 +39,18 @@ export interface SpellCard {
   readonly defaultedTemplateIds: readonly string[];
   readonly codexTemplateIds: readonly string[];
   readonly componentTemplateIds: readonly string[];
-  readonly mandala?: MandalaDocument;
+  readonly formulaV2: MagicFormulaV2;
 }
 
 export interface SpellCompileFailure {
   readonly code: string;
   readonly message: string;
-  readonly outcome: RecognitionOutcome | "graph_invalid";
+  readonly outcome: RecognitionOutcome | "formula_invalid";
   readonly diegeticFailure?: DiegeticFailureResolution;
   readonly match?: TemplateMatchResult;
   readonly topology?: TopologyValidationResult;
   readonly semantic?: SemanticMarginResult;
-  readonly graphIssues?: readonly SpellGraphCompileIssue[];
+  readonly formulaIssues?: readonly FormulaIssueV2[];
 }
 
 export type SpellCompileResult =

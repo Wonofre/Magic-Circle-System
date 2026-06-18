@@ -11,6 +11,12 @@ node_modules
 dist
 dist-ssr
 *.local
+ml/.venv
+ml/data
+ml/artifacts
+__pycache__/
+*.pyc
+agent-tools/
 
 # Editor directories and files
 .vscode/*

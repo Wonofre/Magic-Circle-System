@@ -88,7 +88,7 @@ const collectFailureCodes = (input: RecognitionTelemetryInput): readonly string[
   if (input.match?.rejectionReason) codes.push(input.match.rejectionReason);
   if (input.failure?.code) codes.push(input.failure.code);
   if (input.failure?.diegeticFailure?.kind) codes.push(input.failure.diegeticFailure.kind);
-  input.failure?.graphIssues?.forEach((issue) => codes.push(issue.code));
+  input.failure?.formulaIssues?.forEach((issue) => codes.push(issue.code));
   input.topology?.checks
     .filter((check) => check.status === "fail")
     .forEach((check) => codes.push(check.id));
@@ -103,10 +103,10 @@ const collectFailureCodes = (input: RecognitionTelemetryInput): readonly string[
 const acceptedTemplateId = (
   decision: RecognitionTelemetryInput["decision"],
   semanticResults: readonly SemanticMarginResult[] | undefined,
-): string | null => {
-  if (decision !== "accepted" && decision !== "legacy_bridge_fallback") return null;
-  return semanticResults?.find((semantic) => semantic.candidate)?.candidate?.template.id ?? null;
-};
+): string | null =>
+  decision === "accepted"
+    ? semanticResults?.find((semantic) => semantic.candidate)?.candidate?.template.id ?? null
+    : null;
 
 export const createRecognitionTelemetryEvent = (
   input: RecognitionTelemetryInput,
@@ -127,7 +127,34 @@ export const createRecognitionTelemetryEvent = (
     decision: input.decision,
     acceptedTemplateId: acceptedTemplateId(input.decision, input.semanticResults),
     expectedGlyphId: input.context.expectedGlyphId,
-    fallbackUsed: input.fallbackUsed,
+    model: input.probabilistic
+      ? {
+          status: input.probabilistic.modelStatus,
+          version: input.probabilistic.modelVersion,
+          provider: input.probabilistic.provider,
+          latencyMs: roundMetric(input.probabilistic.latencyMs),
+          fallbackUsed: input.probabilistic.fallbackUsed,
+          error: input.probabilistic.error,
+        }
+      : undefined,
+    regions: input.probabilistic?.regions.map((region) => ({
+      id: region.id,
+      sourceIndexes: region.sourceIndexes,
+      rejected: region.rejected,
+      rejectionReason: region.rejectionReason,
+      candidates: region.candidates.map((candidate) => ({
+        templateId: candidate.templateId,
+        rank: candidate.rank,
+        confidence: roundMetric(candidate.confidence),
+        semanticMargin: roundMetric(candidate.semanticMargin),
+        confidenceThreshold: roundMetric(candidate.confidenceThreshold),
+        semanticMarginThreshold: roundMetric(candidate.semanticMarginThreshold),
+        passesConfidenceThreshold: candidate.passesConfidenceThreshold,
+        passesSemanticMarginThreshold: candidate.passesSemanticMarginThreshold,
+        source: candidate.source,
+        acceptedByClassThreshold: candidate.acceptedByClassThreshold,
+      })),
+    })),
   };
 };
 

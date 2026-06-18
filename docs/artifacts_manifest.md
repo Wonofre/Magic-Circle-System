@@ -12,7 +12,7 @@ Contém:
 
 - visão do projeto;
 - regras para Codex;
-- arquitetura alvo;
+- arquitetura tecnica;
 - roadmap;
 - ordem de tasks;
 - Definition of Done;
@@ -30,7 +30,7 @@ Contém templates vetoriais normalizados para:
 - elementos primários;
 - ações;
 - formas;
-- alvos.
+- defesas, tempo e risco.
 
 Cada item inclui:
 

@@ -18,6 +18,8 @@ export interface RecognitionStroke<TPoint extends RecognitionPoint = Recognition
   readonly id?: string;
   readonly points: readonly TPoint[];
   readonly timestamp?: number;
+  readonly semanticGroupId?: string;
+  readonly semanticTemplateId?: string;
 }
 
 export interface RecognitionBounds {
@@ -230,6 +232,8 @@ export interface SemanticDecisionReason {
 export interface SemanticMarginOptions {
   readonly severeConfidenceGap?: number;
   readonly weakTopologyOutcome?: RecognitionOutcome;
+  readonly confidenceThreshold?: number;
+  readonly semanticMarginThreshold?: number;
 }
 
 export interface SemanticMarginResult {
@@ -242,4 +246,52 @@ export interface SemanticMarginResult {
   readonly minSemanticMargin: number;
   readonly topologyValid: boolean | null;
   readonly reasons: readonly SemanticDecisionReason[];
+}
+
+export type RecognitionCandidateSource =
+  | "onnx_webgpu"
+  | "onnx_wasm"
+  | "template_matcher"
+  | "canonical_hint";
+
+export type VisionModelStatus =
+  | "idle"
+  | "loading"
+  | "ready"
+  | "unavailable"
+  | "error";
+
+export interface VisionGlyphCandidate {
+  readonly templateId: string;
+  readonly rank: number;
+  readonly confidence: number;
+  readonly semanticMargin: number;
+  readonly confidenceThreshold: number;
+  readonly semanticMarginThreshold: number;
+  readonly passesConfidenceThreshold: boolean;
+  readonly passesSemanticMarginThreshold: boolean;
+  readonly source: RecognitionCandidateSource;
+  readonly acceptedByClassThreshold: boolean;
+}
+
+export interface VisionMandalaRegion {
+  readonly id: string;
+  readonly strokes: readonly RecognitionStroke[];
+  readonly sourceIndexes: readonly number[];
+  readonly bounds: RecognitionBounds | null;
+  readonly zone?: "frame" | "core" | "inner" | "middle" | "outer" | "orbital";
+  readonly candidates: readonly VisionGlyphCandidate[];
+  readonly rejected: boolean;
+  readonly rejectionReason?: "unknown" | "low_confidence" | "low_margin" | "scribble";
+}
+
+export interface ProbabilisticRecognitionResult {
+  readonly regions: readonly VisionMandalaRegion[];
+  readonly source: RecognitionCandidateSource;
+  readonly modelStatus: VisionModelStatus;
+  readonly modelVersion?: string;
+  readonly provider?: "webgpu" | "wasm" | "template_matcher" | "canonical_hint";
+  readonly latencyMs: number;
+  readonly fallbackUsed: boolean;
+  readonly error?: string;
 }

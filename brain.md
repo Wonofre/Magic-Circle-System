@@ -115,13 +115,13 @@ Nao recomendado commitar no repo. Usar como release artifact se necessario.
 
 Pitch:
 
-> Um TCG onde as cartas nao sao apenas colecionadas: elas sao desenhadas. Cada carta nasce de um circulo magico feito com tinta arcana. O sistema le a estrutura do desenho, compila sua intencao e transforma o resultado em uma magia jogavel. Desenhos precisos geram magias fortes e estaveis; desenhos mal feitos falham, vazam, erram o alvo ou voltam contra o conjurador.
+> Um TCG onde as cartas nao sao apenas colecionadas: elas sao desenhadas. Cada carta nasce de um circulo magico feito com tinta arcana. O sistema le a estrutura do desenho, compila sua intencao e transforma o resultado em uma magia jogavel. Desenhos precisos geram magias fortes e estaveis; desenhos mal feitos falham, vazam, desviam ou voltam contra o conjurador.
 
 MVP:
 
 - Combate 1v1 contra IA.
 - Jogador desenha magia/carta no canvas.
-- Sistema reconhece moldura, fonte, elemento, acao, forma e alvo.
+- Sistema reconhece circulo de conjuracao, sigilo, acao, forma, defesa, tempo e risco.
 - Sistema compila a magia em uma carta.
 - Recurso principal: **tinta magica**.
 - IA tambem desenha sua magia; o jogo mostra o desenho da IA, nome e efeito.
@@ -136,7 +136,7 @@ Futuro:
 
 ---
 
-## 5. Arquitetura tecnica alvo
+## 5. Arquitetura tecnica
 
 Pipeline correto:
 
@@ -227,7 +227,7 @@ src/
 
 ### Glifo
 
-Simbolo reconhecivel desenhado pelo jogador. Pode ser elemento, acao, forma, alvo, tempo, defesa ou risco.
+Simbolo reconhecivel desenhado pelo jogador. Pode ser elemento, acao, forma, tempo, defesa ou risco.
 
 ### Moldura
 
@@ -239,7 +239,7 @@ Recurso/mana do jogo. A tinta nao e apenas custo; ela flui no desenho.
 
 ### SpellGraph
 
-Grafo canonico compilado a partir dos glifos reconhecidos. Define fontes, conexoes, elementos, acoes, formas, alvos, riscos, estabilidade e fluxo.
+Grafo canonico compilado a partir dos glifos reconhecidos. Define conexoes, elementos, acoes, formas, riscos, estabilidade e fluxo.
 
 ### SpellCard
 
@@ -393,12 +393,11 @@ Criterio de aceite:
   - precisa de fonte;
   - precisa de elemento;
   - precisa de acao ou forma;
-  - precisa de alvo ou alvo padrao legal;
   - conexoes precisam respeitar portas.
 - [x] Criar `spellHash` deterministico para o grafo canonico.
 
 Criterio de aceite:
-- `Fogo + Emitir + Projetil + Alvo` gera magia ofensiva;
+- `Fogo + Emitir + Projetil` gera magia ofensiva;
 - `Terra + Conter + Barreira` gera magia defensiva;
 - sem moldura falha;
 - grafos equivalentes geram mesmo `spellHash`.
@@ -407,7 +406,7 @@ Resultado:
 - criados `src/types/spellGraph.ts` e `src/lib/recognizer/graphCompiler.ts`;
 - `compileSpellGraph` recebe glifos reconhecidos, ordena canonicamente, cria nos/arestas, valida gramatica minima e gera `spellHash`;
 - `semanticResultsToGraphInputs` prepara resultados semanticos aceitos para o grafo;
-- alvo padrao legal e adicionado quando nao houver alvo explicito.
+- destino de gameplay e derivado automaticamente da forma e da categoria do efeito.
 
 Pendencias:
 - conexoes por portas ainda sao heuristicas e devem ficar mais rigorosas nas proximas fases;
@@ -426,7 +425,7 @@ Pendencias:
 Criterio de aceite:
 - uma chamada pura compila strokes em carta ou falha;
 - `App.tsx` ainda nao precisa ser refeito inteiro;
-- resultado inclui nome, custo, estabilidade, potencia, alvo e falhas.
+- resultado inclui nome, custo, estabilidade, potencia, area e falhas.
 
 Resultado:
 - criados `src/types/spellCard.ts`, `src/data/spellRecipes.ts` e `src/lib/spell/spellCompiler.ts`;
@@ -473,7 +472,6 @@ Pendencias:
   - `miscast`;
   - `leak`;
   - `backfire`;
-  - `wrong_target`;
   - `unknown`;
   - `overload`.
 - [x] Severidade combina erro geometrico, topologia, ambiguidade, dinamica e tinta.
@@ -487,7 +485,7 @@ Criterio de aceite:
 
 Resultado:
 - criado `src/lib/recognizer/failureResolver.ts` como camada pura de resolucao de falhas;
-- falhas `fizzle`, `miscast`, `leak`, `backfire`, `wrong_target`, `unknown` e `overload` agora retornam severidade, mensagem diegetica, causa tecnica, sinais numericos e efeito futuro de combate;
+- falhas `fizzle`, `miscast`, `leak`, `backfire`, `unknown` e `overload` agora retornam severidade, mensagem diegetica, causa tecnica, sinais numericos e efeito futuro de combate;
 - severidade combina sinais de geometria, topologia, ambiguidade semantica, dinamica do traco e tinta;
 - `SpellCompileFailure` agora pode carregar `diegeticFailure`;
 - `spellCompiler.ts` anexa resolucao diegetica em rejeicao de reconhecimento, rejeicao semantica e grafo invalido;
@@ -496,7 +494,6 @@ Resultado:
 Pendencias:
 - o fluxo visual antigo em `App.tsx` ainda nao consome `diegeticFailure`;
 - dano real de `backfire`/`overload` ainda fica como `casterDamageHint` para ser aplicado quando o combate migrar para o compilador novo;
-- `wrong_target` depende de issues de grafo e deve ficar mais rico quando conexoes/portas forem validadas com mais rigor.
 
 ### Fase 12 - IA que desenha
 
@@ -728,7 +725,7 @@ Pendencias:
 - [x] Usar `spellHash`, nome, sigilo primario e resultado para gerar assinatura visual deterministica.
 - [x] Implementar fallback inicial em CSS/SVG/React, sem PixiJS.
 - [x] Reaproveitar `PerfectGlyphPreview` para assinatura vetorial inicial do sigilo principal.
-- [x] Ligar trajetoria/impacto basico ao alvo visual: dano projeta para inimigo; cura/escudo retorna para self.
+- [x] Ligar trajetoria/impacto basico ao destino automatico: dano projeta para oponente; cura/escudo retorna ao conjurador.
 - [ ] Implementar biblioteca completa de primitivas: line draw, ring pulse, ribbon, sparks, shockwave, residue, impact decal.
 - [ ] Avaliar PixiJS apenas para efeitos mais pesados.
 
@@ -741,7 +738,7 @@ Criterio de aceite:
 Resultado:
 - criada camada procedural simples com seed deterministica e receita por tipo de resultado;
 - VFX aparece sobre a pagina ativa durante cast e respeita `prefers-reduced-motion`.
-- VFX agora inclui glyph preview vetorial e classe de alvo (`enemy`, `self`, `field`) para direcao visual.
+- VFX agora inclui glyph preview vetorial e classe de destino (`opponent`, `caster`, `field`) para direcao visual.
 
 Pendencias:
 - adicionar replay vetorial real do glifo desenhado pelo jogador;
@@ -765,6 +762,116 @@ Pendencias:
 - testar densidade de informacao de cada carta;
 - conectar replay do glifo ao historico real do jogador no futuro.
 
+### Tarefa extra - Ontologia e gameplay mais redondas (2026-06-04)
+
+Resultado:
+- criado `src/lib/spell/combatResolver.ts` para resolver `SpellCard` em efeito de combate de forma pura e compartilhada;
+- `App.tsx` passou a usar o mesmo resolvedor para magia do jogador e magia inimiga;
+- turno inimigo deixou de aplicar dano/escudo por estimativa de `EnemySpellPlan` e passou a compilar o replay da IA em `SpellCard`, pagar custo real de tinta e resolver dano, cura, escudo, status e campos pelo perfil sintetizado da formula;
+- criado avanço unico de turno inimigo para resetar canvas, ticks, tinta e campos sem duplicacao;
+- `RecognitionStroke` ganhou `semanticGroupId` e `semanticTemplateId` opcionais para replays canonicos;
+- `enemyStrokeRenderer` passou a desenhar por papel ontologico: moldura externa, sigilo no nucleo e chaves ao redor;
+- parser de mandala passou a agrupar strokes canonicos por `semanticGroupId` e a filtrar por `semanticTemplateId`, evitando combinatoria pesada e confusao entre glifos vizinhos no replay da IA;
+- parser livre humano manteve matching estrutural, com combinacoes locais limitadas por distancia para reduzir custo;
+- ruido visual da IA foi recalibrado para preservar personalidade sem quebrar leitura;
+- adicionados testes garantindo que planos inimigos de varias rodadas compilam em `SpellCard` executavel e que o combate inimigo usa carta compilada, nao estimativa de plano;
+- lint corrigido em `GlyphTemplatePreview.tsx` removendo exports utilitarios de arquivo de componente.
+
+Validacao:
+- `npm test` passa com 40 testes;
+- `npm run lint` passa;
+- `npm run build` passa.
+
+Pendencias:
+- nenhuma pendencia funcional nova conhecida desta tarefa;
+- o build ainda avisa sobre Browserslist antigo e chunk principal acima de 500 kB, ambos fora do loop de magia/combat resolver.
+
+### Tarefa extra - Revisao de consistencia do catalogo do app (2026-06-04)
+
+Achado:
+- o catalogo v2 estava coerente com o bundle de origem, mas a apresentacao do app escondia a ponte mais importante: alguns glifos visuais de papel `action`, `form` ou `defense` compilam para a mesma key executavel v2;
+- exemplo: `ACTION_EMIT` e `FORM_PROJECTILE` ambos compilam como `PROJECTILE`, e isso e valido no sistema v2, mas o Guia/Codex nao deixavam claro que estavam mostrando papel visual e binding executavel ao mesmo tempo.
+
+Resultado:
+- `runeCatalogPresentation.ts` ganhou `keyKindLabels` e `getRuneBindingLabel`;
+- linhas do Guia agora exibem binding executavel v2, como `Chave v2: Projetil (forma)` ou `Sigilo v2: Ignis`;
+- chips do Codex agora mostram nome visual, papel visual e binding v2, evitando a impressao de que dois glifos iguais foram registrados quando sao desenhos diferentes que compilam para a mesma key;
+- `magicOntology.test.ts` ganhou cobertura para garantir que a apresentacao do catalogo inclui esses bindings v2.
+
+Validacao:
+- `npm test` passa com 41 testes;
+- `npm run lint` passa;
+- `npm run build` passa.
+
+Pendencias:
+- nenhuma inconsistencia funcional nova encontrada no catalogo ativo;
+- o design ainda pode evoluir para separar visualmente "glifo desenhado" e "key compilada" com duas colunas no futuro.
+
+### Tarefa extra - Alinhar imagens do front ao catalogo realmente ativo (2026-06-04)
+
+Achado:
+- partes do front ainda deixavam o analisador legado (`magicSystem.ts`) influenciar labels/feedback do canvas;
+- `evaluateCurrentGlyph` bloqueava cedo quando o analisador legado nao encontrava componentes, antes de deixar o compilador v2 decidir;
+- isso fazia o jogador ver nomes/labels que podiam nao corresponder ao catalogo v2 que realmente compila a magia.
+
+Resultado:
+- `App.tsx` deixou de usar `drawingElementToV2` e nao deriva mais etiqueta do canvas a partir de `sigilType` legado;
+- etiqueta/cor do canvas agora e neutra durante leitura e so recebe elemento depois da formula v2 compilada;
+- reset do canvas tambem limpa `canvasGlowColor` e `canvasElementName`, evitando elementos antigos como `Ventus` em pagina vazia;
+- `evaluateCurrentGlyph` agora roda o compilador v2 quando existem strokes, mesmo que o analisador legado nao tenha encontrado componentes;
+- removido estado `currentComponents`, que era vestigio do fluxo antigo;
+- `magicOntology.ts` passou a manter `rune.name` como nome visual do glifo, nao nome da key compilada;
+- `spellNameResolverV2.ts` nao duplica nomes quando dois glifos visuais compilam para a mesma key, evitando nomes como `Projetil Projetil ...`;
+- testes agora protegem contra reintroducao de `drawingElementToV2` e gate por `componentsOverride.length`.
+
+Validacao:
+- `npm test` passa com 42 testes;
+- `npm run lint` passa;
+- `npm run build` passa.
+
+### Tarefa extra - Migrar runtime/front para o zip v2.2 sem ponte antiga (2026-06-04)
+
+Pedido:
+- usar as indicacoes do `magic_circle_v2_2_no_legacy_circular_channels_bundle.zip`;
+- retirar runtime/catalogo antigo sem quebrar a gameplay.
+
+Resultado:
+- `magicCatalogV2.seed.json` foi alinhado ao formato do zip (`legacyPolicy.runtimeLegacyAllowed = false`);
+- `GuidePanelV2` agora mostra o catalogo canonico v2.2 por `Sigilos` e `Chaves`, com os glifos do app apenas como desenhos que acionam cada binding;
+- `GameCanvas` saiu de `magicSystem.ts` e usa `canvasFeedbackV2`, que mede circulo de conjuracao e finaliza pela mandala v2;
+- `lib/spell/mandalaParser.ts`, `lib/magicSystem.ts`, `PerfectGlyphPreview.tsx`, `GrimoirePanel.tsx`, `mandalaHash.ts` e o documento/hash v1 foram removidos;
+- `componentRecognizerV2` substitui o parser antigo no caminho do `mandalaParserV2`;
+- `CodexStore` nao migra mais chaves v1 nem entradas importadas;
+- `Spell`/`GlyphComponent`/`DrawingSigilShapeId`/`DrawingKeyShapeId` foram removidos dos tipos de gameplay;
+- o runtime v2.2 passou a derivar comportamento apenas das chaves executaveis e da geometria da formula.
+
+Observacao:
+- o combate continua derivado de metadados v2.2 para manter o jogo funcional, mesmo que o doc do zip trate efeitos como metadados futuros.
+
+Validacao:
+- `npm test` passa com 38 testes;
+- `npm run lint` passa;
+- `npm run build` passa;
+- screenshot headless em `app-v22-headless.png` confirma menu v2.2 com sigilos/chaves/canais.
+
+### Tarefa extra - Remover o sistema de alvo (2026-06-05)
+
+Decisao:
+- alvo deixa de ser glifo, papel semantico, key executavel, campo de `SpellCard` e requisito de receita;
+- destino de gameplay passa a ser derivado automaticamente: suporte/defesa afetam o conjurador, ataque/controle/utilidade afetam o oponente e formas de campo mantem area propria;
+- `FORM_CHAIN` e `ACTION_SEAL` preservam controle e enraizamento sem `TARGET_ENEMY`.
+
+Resultado:
+- removidos `TARGET_SELF`, `TARGET_ENEMY`, `BIND_SELF`, `BIND_ENEMY`, `SpellCardTarget`, `targetLabels` e `wrong_target`;
+- catálogo visual, ontologia, IA, Codex, VFX, resolvedor de combate, documentos e folha SVG foram limpos;
+- entradas antigas do Codex perdem o campo legado `target` ao carregar;
+- cobertura garante ataque `single`, cura `support/self` e ausencia dos símbolos removidos.
+
+Validacao:
+- `npm test` passa com 39 testes;
+- `npm run lint` passa;
+- `npm run build` passa.
+
 ---
 
 ## 9. Proximo prompt recomendado para Codex
@@ -778,7 +885,7 @@ Objetivo: adicionar resolucao diegetica de falhas como camada pura e explicavel.
 
 Requisitos:
 - criar src/lib/recognizer/failureResolver.ts;
-- mapear falhas fizzle, miscast, leak, backfire, wrong_target, unknown e overload;
+- mapear falhas fizzle, miscast, leak, backfire, unknown e overload;
 - combinar erro geometrico, topologia, ambiguidade, dinamica e tinta;
 - permitir backfire causar dano ao jogador em etapa futura;
 - feedback deve apontar causa tecnica em linguagem diegetica;
@@ -815,3 +922,52 @@ O mesmo desenho deve gerar o mesmo `spellHash`.
 Desenho melhor melhora potencia, custo, estabilidade ou precisao.  
 Desenho errado causa falha compreensivel.  
 O sistema deve parecer magico porque e coerente, nao porque aceita qualquer coisa.
+
+---
+
+## Tarefa extra - Reconhecedor ML real ONNX (2026-06-08)
+
+Resultado:
+- criado pacote reproduzivel em `ml/` com geracao sintetica, treino, calibracao, exportacao e verificacao;
+- treinado MobileNetV3-Small real, adaptado para entrada monocromatica `1x128x128`;
+- modelo cobre 28 glifos ativos mais `UNKNOWN`;
+- artefato publicado em `public/models/glyph-recognizer-v1/model.onnx`;
+- runtime usa `onnxruntime-web`, tenta WebGPU e cai para WASM local;
+- cast humano passou a usar reconhecimento assincrono top-k;
+- preview e replay canonico da IA continuam no caminho deterministico leve;
+- candidatos ML passam por topologia, beam search limitado e gramatica v2.2;
+- falha de carregamento do modelo usa o matcher atual como fallback;
+- baixa confianca ou `UNKNOWN` nao ativam fallback permissivo;
+- telemetria registra modelo, provider, latencia, regioes, candidatos e rejeicoes;
+- adicionado laboratorio `?glyphCollector=1` com IndexedDB e exportacao JSONL;
+- rasterizadores Python e TypeScript possuem teste de paridade;
+- smoke em Chrome confirmou inferencia real pelo provider WASM.
+- `src/data/magicRunesV2.seed.json` virou a fonte unica de classes, bindings e negativos estruturais;
+- removida a lista paralela `ml/glyph_classes.json`;
+- runtime recusa metadata com ordem de classes, versao, binding ou thresholds divergentes;
+- probabilidades ONNX usam seus thresholds calibrados, sem reaplicar margens do matcher legado;
+- datasets, checkpoint e metadata carregam hashes de proveniencia e exportacao recusa arquivos trocados;
+- coletor registra versao do catalogo/modelo e mostra desenho visual separado do binding executavel.
+
+Metricas do artefato:
+- tamanho ONNX FP32: 6.483.854 bytes;
+- top-1 sintetico: 98,37%;
+- top-3 sintetico: 99,67%;
+- falso aceite de `UNKNOWN` apos gate estrutural: 1,56%;
+- erro maximo PyTorch/ONNX: `2.9802322387695312e-06`;
+- versao: `1.0.0-20260608-3d7b0678`;
+- SHA-256: `3d7b0678baafac45a79752e8abc5fd8f6e86ed224bd02f828ff89353ae767757`;
+- spec do dataset: `264ea083306906c58eec2eb28c20fcd177e60d4fc4025e4b89c8b542c04568f2`.
+
+Comandos:
+- `npm run ml:generate`;
+- `npm run ml:train`;
+- `npm run ml:export`;
+- `npm run ml:verify`;
+- `npm run ml:smoke:web`.
+
+Pendencias:
+- coletar e revisar desenhos humanos reais antes de tratar as metricas sinteticas como qualidade de producao;
+- retreinar com os JSONL exportados pelo laboratorio;
+- medir latencia e acuracia em mobile real;
+- avaliar reducao dos assets WASM ou carregamento seletivo depois de validar compatibilidade dos navegadores alvo.

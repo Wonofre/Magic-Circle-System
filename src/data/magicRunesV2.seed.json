@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 1,
+  "catalogVersion": "2.2.0",
+  "defaults": {
+    "active": true,
+    "playerDrawable": true,
+    "enemyDrawable": true,
+    "knownByDefault": true,
+    "canBeDefaulted": false,
+    "codexDiscoverable": true
+  },
+  "unknownNegativeTemplateIds": [
+    "FRAME_CIRCLE_CONTAINMENT",
+    "FRAME_DOUBLE_SEAL",
+    "SOURCE_DOT",
+    "SOURCE_DOUBLE"
+  ],
+  "runes": [
+    {
+      "templateId": "FRAME_CIRCLE_CONTAINMENT",
+      "binding": { "type": "casting_circle" },
+      "expectedZones": ["frame"]
+    },
+    {
+      "templateId": "FRAME_DOUBLE_SEAL",
+      "binding": { "type": "casting_circle" },
+      "expectedZones": ["frame"],
+      "knownByDefault": false
+    },
+    {
+      "templateId": "ELEMENT_IGNIS",
+      "binding": { "type": "sigil", "sigilId": "IGNIS" },
+      "expectedZones": ["core", "inner"]
+    },
+    {
+      "templateId": "ELEMENT_AQUA",
+      "binding": { "type": "sigil", "sigilId": "AQUA" },
+      "expectedZones": ["core", "inner"]
+    },
+    {
+      "templateId": "ELEMENT_TERRA",
+      "binding": { "type": "sigil", "sigilId": "TERRA" },
+      "expectedZones": ["core", "inner"]
+    },
+    {
+      "templateId": "ELEMENT_VENTUS",
+      "binding": { "type": "sigil", "sigilId": "VENTUS" },
+      "expectedZones": ["core", "inner"]
+    },
+    {
+      "templateId": "ELEMENT_LUX",
+      "binding": { "type": "sigil", "sigilId": "LUX" },
+      "expectedZones": ["core", "inner"]
+    },
+    {
+      "templateId": "ELEMENT_UMBRA",
+      "binding": { "type": "sigil", "sigilId": "UMBRA" },
+      "expectedZones": ["core", "inner"]
+    },
+    {
+      "templateId": "ELEMENT_VITA",
+      "binding": { "type": "sigil", "sigilId": "VITA" },
+      "expectedZones": ["core", "inner"]
+    },
+    {
+      "templateId": "ELEMENT_MENS",
+      "binding": { "type": "sigil", "sigilId": "MENS" },
+      "expectedZones": ["core", "inner"]
+    },
+    {
+      "templateId": "DERIVED_GELU",
+      "binding": { "type": "sigil", "sigilId": "GELU" },
+      "expectedZones": ["core", "inner"]
+    },
+    {
+      "templateId": "DERIVED_FULMEN",
+      "binding": { "type": "sigil", "sigilId": "FULMEN" },
+      "expectedZones": ["core", "inner"]
+    },
+    {
+      "templateId": "DERIVED_SANGUIS",
+      "binding": { "type": "sigil", "sigilId": "SANGUIS" },
+      "expectedZones": ["core", "inner"],
+      "knownByDefault": false
+    },
+    {
+      "templateId": "ACTION_EMIT",
+      "binding": { "type": "key", "keyId": "PROJECTILE" },
+      "expectedZones": ["middle", "outer"]
+    },
+    {
+      "templateId": "ACTION_CONTAIN",
+      "binding": { "type": "key", "keyId": "SHIELD" },
+      "expectedZones": ["middle", "outer"]
+    },
+    {
+      "templateId": "ACTION_RESTORE",
+      "binding": { "type": "key", "keyId": "SUSTAIN" },
+      "expectedZones": ["middle", "outer"]
+    },
+    {
+      "templateId": "ACTION_SEAL",
+      "binding": { "type": "key", "keyId": "TRAP" },
+      "expectedZones": ["middle", "outer"]
+    },
+    {
+      "templateId": "ACTION_DISPEL",
+      "binding": { "type": "key", "keyId": "DISPEL" },
+      "expectedZones": ["middle", "outer"],
+      "knownByDefault": false
+    },
+    {
+      "templateId": "ACTION_COUNTER",
+      "binding": { "type": "key", "keyId": "COUNTER" },
+      "expectedZones": ["outer", "orbital"],
+      "knownByDefault": false
+    },
+    {
+      "templateId": "FORM_PROJECTILE",
+      "binding": { "type": "key", "keyId": "PROJECTILE" },
+      "expectedZones": ["middle", "outer"]
+    },
+    {
+      "templateId": "FORM_BEAM",
+      "binding": { "type": "key", "keyId": "PIERCE" },
+      "expectedZones": ["middle", "outer"]
+    },
+    {
+      "templateId": "FORM_AURA",
+      "binding": { "type": "key", "keyId": "BUBBLE" },
+      "expectedZones": ["middle", "outer"]
+    },
+    {
+      "templateId": "FORM_WAVE",
+      "binding": { "type": "key", "keyId": "DIFFUSE" },
+      "expectedZones": ["middle", "outer"]
+    },
+    {
+      "templateId": "FORM_CHAIN",
+      "binding": { "type": "key", "keyId": "SUSTAIN" },
+      "expectedZones": ["middle", "outer"]
+    },
+    {
+      "templateId": "FORM_RAIN",
+      "binding": { "type": "key", "keyId": "FIELD" },
+      "expectedZones": ["middle", "outer"]
+    },
+    {
+      "templateId": "MODIFIER_SPIRAL",
+      "binding": { "type": "key", "keyId": "SPIRAL" },
+      "expectedZones": ["middle", "outer"],
+      "knownByDefault": false
+    },
+    {
+      "templateId": "FORM_TRAP",
+      "binding": { "type": "key", "keyId": "TRAP" },
+      "expectedZones": ["middle", "outer"],
+      "knownByDefault": false
+    },
+    {
+      "templateId": "TIME_TICK",
+      "binding": { "type": "key", "keyId": "TICK" },
+      "expectedZones": ["outer", "orbital"],
+      "knownByDefault": false
+    },
+    {
+      "templateId": "DEFENSE_SHIELD",
+      "binding": { "type": "key", "keyId": "SHIELD" },
+      "expectedZones": ["middle", "outer"]
+    },
+    {
+      "templateId": "RISK_BACKFLOW",
+      "binding": { "type": "key", "keyId": "AMPLIFY" },
+      "expectedZones": ["outer", "orbital"],
+      "knownByDefault": false
+    }
+  ]
+}

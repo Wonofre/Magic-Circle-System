@@ -4,64 +4,37 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
-    --radius: 0.625rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
+    --wha-paper: #e8d4a8;
+    --wha-paper-deep: #c9a86c;
+    --wha-paper-ink: #2a1810;
+    --wha-gold: #c9a227;
+    --wha-gold-bright: #e8c86a;
+    --wha-ink: #1a4a6b;
+    --wha-ink-glow: #2d6a8f;
+    --wha-table: #0d0608;
+    --wha-wine: #2a1018;
+    --wha-candle: rgba(232, 200, 106, 0.35);
 
-  .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --background: 10 6% 4%;
+    --foreground: 38 60% 88%;
+    --card: 38 35% 78%;
+    --card-foreground: 20 40% 12%;
+    --popover: 10 8% 8%;
+    --popover-foreground: 38 60% 88%;
+    --primary: 42 68% 47%;
+    --primary-foreground: 20 40% 10%;
+    --secondary: 205 58% 26%;
+    --secondary-foreground: 200 40% 90%;
+    --muted: 20 15% 18%;
+    --muted-foreground: 38 30% 65%;
+    --accent: 42 68% 47%;
+    --accent-foreground: 20 40% 10%;
+    --destructive: 350 55% 38%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --border: 42 40% 35%;
+    --input: 38 25% 25%;
+    --ring: 42 68% 47%;
+    --radius: 0.5rem;
   }
 }
 
@@ -69,7 +42,27 @@
   * {
     @apply border-border;
   }
+
+  html {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
   body {
     @apply bg-background text-foreground;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  h1, h2, h3, h4, h5, h6,
+  .font-display {
+    font-family: "Cinzel", "Times New Roman", serif;
+    letter-spacing: 0.04em;
+  }
+
+  .font-mono,
+  code, kbd, samp {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
   }
 }

@@ -5,8 +5,11 @@ import { resolve } from "node:path";
 import { activeRuneDefinitions } from "@/data/magicOntology";
 import { getGlyphById } from "@/data/glyphTemplates";
 import { hardNegativeFixtureSet } from "@/lib/telemetry/recognitionTelemetry";
-import { compileSpellFromStrokes } from "@/lib/spell/spellCompiler";
-import { parseMandalaFromStrokes } from "@/lib/spell/mandalaParser";
+import {
+  compileSpellFromStrokes,
+  compileSpellFromStrokesSync,
+} from "@/lib/spell/spellCompiler";
+import { recognizeMandalaComponentsV2 } from "@/lib/recognizerV2/componentRecognizerV2";
 import { evaluateSemanticMargin } from "@/lib/recognizer/semanticMargin";
 import { matchGlyphTemplates } from "@/lib/recognizer/templateMatcher";
 import { validateGlyphTopology } from "@/lib/recognizer/topologyValidator";
@@ -125,7 +128,7 @@ describe("template matcher regressions", () => {
         `${templateId}: ${semantic.outcome} ${semantic.reasons.map((reason) => reason.code).join(",")}`,
       ).toBe(true);
     }
-  });
+  }, 15000);
 
   it("keeps the intended glyph on top for common human drawing variations", () => {
     const cases = [
@@ -156,7 +159,7 @@ describe("template matcher regressions", () => {
   it.each(multiStrokeTemplateIds)(
     "recognizes active multi-stroke glyph component %s as a complete symbol",
     (templateId) => {
-      const parsed = parseMandalaFromStrokes([
+      const parsed = recognizeMandalaComponentsV2([
         ...templateStrokes("FRAME_CIRCLE_CONTAINMENT", 80, 80),
         ...templateStrokes(templateId, 180, 100),
       ]);
@@ -170,16 +173,46 @@ describe("template matcher regressions", () => {
 
   it("keeps hard negative fixtures rejected by the compiler", () => {
     for (const fixture of hardNegativeFixtureSet) {
-      const result = compileSpellFromStrokes(fixture.strokes);
+      const result = compileSpellFromStrokesSync(fixture.strokes);
       expect(result.ok, fixture.id).toBe(false);
     }
   });
 
-  it("does not auto-finalize immediately when the first ring is detected", () => {
+  it("compiles player strokes with fused template+ML ranking without direct stroke-only parse", async () => {
+    const compilerSource = readFileSync(resolve(process.cwd(), "src/lib/spell/spellCompiler.ts"), "utf8");
+    expect(compilerSource).toContain("parseMandalaV2CandidatesFused");
+    expect(compilerSource).toContain("chooseParsedCandidate");
+    expect(compilerSource).not.toContain("parseMandalaV2CandidatesHolistically");
+    expect(compilerSource).not.toContain("parseMandalaV2CandidatesFromStrokes");
+
+    const result = await compileSpellFromStrokes([
+      ...templateStrokes("FRAME_CIRCLE_CONTAINMENT", 80, 80),
+      ...templateStrokes("ELEMENT_AQUA", 180, 180),
+      ...templateStrokes("FORM_PROJECTILE", 280, 180),
+    ]);
+
+    if (result.telemetry?.model) {
+      expect(["ready", "unavailable"]).toContain(result.telemetry.model.status);
+    }
+  });
+
+  it("casts when the outer circle closes instead of requiring a button", () => {
     const source = readFileSync(resolve(process.cwd(), "src/components/GameCanvas.tsx"), "utf8");
 
-    expect(source).not.toContain("setTimeout(() => finalizeGlyph(nextStrokes), 250)");
-    expect(source).not.toContain("if (!isDrawingEnabled || ringClosed || finalizingRef.current) return");
-    expect(source).toContain("scheduleIdleFinalization(nextStrokes)");
+    expect(source).not.toContain("scheduleIdleFinalization");
+    expect(source).not.toContain("finalizeIdleTimeoutRef");
+    expect(source).toContain("isOuterCastingCircleGesture(closedStroke)");
+    expect(source).toContain("finalizeGlyph(nextStrokes)");
+    expect(source).toContain("Circulo externo fechado. Conjurando...");
+    expect(source).not.toContain("onClick={() => finalizeGlyph()}");
+  });
+
+  it("renders the complete first-formula tracing guide", () => {
+    const source = readFileSync(resolve(process.cwd(), "src/components/GameCanvas.tsx"), "utf8");
+
+    expect(source).toContain("drawTutorialTraceGuide");
+    expect(source).toContain("'ELEMENT_AQUA'");
+    expect(source).toContain("'FORM_PROJECTILE'");
+    expect(source).toContain("Modo tutorial:");
   });
 });

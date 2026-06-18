@@ -20,7 +20,7 @@ interface GlyphTemplatePreviewProps {
   readonly strokeWidth?: number;
 }
 
-export const roleLayout: Record<GlyphSemanticRole, GlyphPreviewLayout> = {
+const roleLayout: Record<GlyphSemanticRole, GlyphPreviewLayout> = {
   container: { x: 40, y: 40, size: 72 },
   source: { x: 40, y: 40, size: 13 },
   connector: { x: 40, y: 40, size: 36 },
@@ -28,7 +28,6 @@ export const roleLayout: Record<GlyphSemanticRole, GlyphPreviewLayout> = {
   derived: { x: 40, y: 39, size: 28 },
   action: { x: 23, y: 40, size: 19 },
   form: { x: 57, y: 40, size: 19 },
-  target: { x: 40, y: 58, size: 17 },
   defense: { x: 40, y: 57, size: 24 },
   time: { x: 22, y: 22, size: 15 },
   risk: { x: 58, y: 22, size: 15 },
@@ -43,14 +42,13 @@ const roleStrokeClass: Record<GlyphSemanticRole, string> = {
   derived: "text-sky-300",
   action: "text-red-300",
   form: "text-purple-300",
-  target: "text-emerald-300",
   defense: "text-sky-300",
   time: "text-yellow-200",
   risk: "text-red-400",
   ink: "text-cyan-400",
 };
 
-export const getGlyphBounds = (glyph: GlyphTemplate) => {
+const getGlyphBounds = (glyph: GlyphTemplate) => {
   const points = glyph.strokes.flat();
   const xs = points.map(([x]) => x);
   const ys = points.map(([, y]) => y);

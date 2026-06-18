@@ -1,43 +1,82 @@
-/* Witch Hat Atelier - Magic Circle Game Styles */
+/* Witch Hat Atelier — MAPPA-inspired visual system */
 
-/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.35);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(180, 140, 80, 0.3);
+  background: rgba(201, 162, 39, 0.35);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(180, 140, 80, 0.5);
+  background: rgba(201, 162, 39, 0.55);
 }
 
-/* Smooth canvas transitions */
 canvas {
   image-rendering: auto;
 }
 
-/* Prevent text selection during gameplay */
 .select-none {
   user-select: none;
   -webkit-user-select: none;
 }
 
-/* Custom animations */
+/* ── Ambient scene ── */
+.wha-scene {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.wha-scene-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.wha-scene-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 35%, transparent 0%, rgba(6, 3, 4, 0.45) 65%, rgba(6, 3, 4, 0.88) 100%),
+    linear-gradient(180deg, rgba(13, 6, 8, 0.15) 0%, rgba(6, 3, 4, 0.7) 100%);
+}
+
+.wha-scene-candles {
+  position: absolute;
+  inset: 0;
+  opacity: 0.55;
+  background:
+    radial-gradient(ellipse 280px 200px at 12% 78%, rgba(232, 200, 106, 0.22), transparent 70%),
+    radial-gradient(ellipse 220px 180px at 88% 72%, rgba(232, 200, 106, 0.18), transparent 70%),
+    radial-gradient(ellipse 160px 120px at 50% 92%, rgba(232, 200, 106, 0.12), transparent 70%);
+  animation: candle-flicker 4s ease-in-out infinite alternate;
+}
+
+.wha-scene-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── Animations ── */
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-6px); }
+  50% { transform: translateY(-8px); }
 }
 
 @keyframes pulse-glow {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.8; }
+  0%, 100% { opacity: 0.35; filter: blur(0px); }
+  50% { opacity: 0.75; filter: blur(1px); }
 }
 
 @keyframes shimmer {
@@ -45,34 +84,269 @@ canvas {
   100% { background-position: 200% center; }
 }
 
+@keyframes candle-flicker {
+  0%, 100% { opacity: 0.5; }
+  33% { opacity: 0.62; }
+  66% { opacity: 0.48; }
+}
+
+@keyframes magic-orbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ink-ripple {
+  0% { transform: scale(0.92); opacity: 0.6; }
+  50% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.92); opacity: 0.6; }
+}
+
+@keyframes panel-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .animate-float {
-  animation: float 3s ease-in-out infinite;
+  animation: float 3.5s ease-in-out infinite;
 }
 
 .animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
+  animation: pulse-glow 2.4s ease-in-out infinite;
 }
 
-/* Glass morphism effect */
+.animate-panel-rise {
+  animation: panel-rise 0.5s cubic-bezier(0.18, 0.84, 0.22, 1) both;
+}
+
+/* ── Menu ── */
+.wha-menu {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.75rem;
+  padding: 3rem 1rem;
+}
+
+.wha-menu-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.wha-emblem-ring {
+  position: relative;
+  width: 9rem;
+  height: 9rem;
+  display: grid;
+  place-items: center;
+}
+
+.wha-emblem-ring::before {
+  content: "";
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  background: url(/assets/magic-circle-frame.jpg) center / cover no-repeat;
+  opacity: 0.55;
+  animation: magic-orbit 48s linear infinite;
+  filter: saturate(1.2) brightness(1.1);
+}
+
+.wha-emblem-ring::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  box-shadow: 0 0 32px rgba(201, 162, 39, 0.2), inset 0 0 24px rgba(26, 74, 107, 0.15);
+  animation: ink-ripple 3s ease-in-out infinite;
+}
+
+.wha-emblem {
+  position: relative;
+  z-index: 1;
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(201, 162, 39, 0.5);
+  box-shadow: 0 0 28px rgba(45, 106, 143, 0.35);
+}
+
+.wha-title {
+  font-family: "Cinzel", serif;
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  font-weight: 700;
+  color: var(--wha-gold-bright);
+  text-align: center;
+  text-shadow: 0 2px 16px rgba(201, 162, 39, 0.35), 0 0 40px rgba(26, 74, 107, 0.2);
+  letter-spacing: 0.12em;
+}
+
+.wha-subtitle {
+  max-width: 22rem;
+  text-align: center;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: rgba(232, 212, 168, 0.72);
+  font-style: italic;
+}
+
+.wha-cta {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 2.25rem;
+  font-family: "Cinzel", serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--wha-paper);
+  background:
+    linear-gradient(135deg, rgba(201, 162, 39, 0.35), rgba(42, 16, 24, 0.85)),
+    linear-gradient(180deg, rgba(42, 24, 12, 0.6), rgba(20, 8, 12, 0.9));
+  border: 1px solid rgba(201, 162, 39, 0.55);
+  border-radius: 4px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(232, 200, 106, 0.25),
+    0 0 24px rgba(201, 162, 39, 0.12);
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.wha-cta::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(232, 200, 106, 0.12) 50%, transparent 60%);
+  background-size: 200% 100%;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+.wha-cta:hover {
+  transform: translateY(-2px) scale(1.02);
+  border-color: rgba(232, 200, 106, 0.75);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(232, 200, 106, 0.35),
+    0 0 36px rgba(201, 162, 39, 0.25);
+}
+
+.wha-cta:active {
+  transform: scale(0.97);
+}
+
+.wha-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 24rem;
+}
+
+.wha-stat-card {
+  text-align: center;
+  padding: 0.85rem 0.5rem;
+  border: 1px solid rgba(201, 162, 39, 0.22);
+  border-radius: 4px;
+  background:
+    linear-gradient(160deg, rgba(42, 16, 24, 0.65), rgba(13, 6, 8, 0.85));
+  box-shadow: inset 0 0 20px rgba(26, 74, 107, 0.08);
+  transition: border-color 0.2s ease;
+}
+
+.wha-stat-card:hover {
+  border-color: rgba(201, 162, 39, 0.4);
+}
+
+.wha-rune-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 24rem;
+}
+
+.wha-rune-tile {
+  text-align: center;
+  padding: 0.5rem 0.25rem;
+  border: 1px solid rgba(201, 162, 39, 0.18);
+  border-radius: 4px;
+  background: rgba(13, 6, 8, 0.55);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.wha-rune-tile:hover {
+  background: rgba(42, 16, 24, 0.6);
+  border-color: rgba(45, 106, 143, 0.4);
+}
+
+/* ── Header ── */
+.wha-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(201, 162, 39, 0.15);
+}
+
+.wha-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.wha-header-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 6px;
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  object-fit: cover;
+  box-shadow: 0 0 16px rgba(45, 106, 143, 0.25);
+}
+
+.wha-icon-btn {
+  padding: 0.6rem;
+  border-radius: 6px;
+  border: 1px solid rgba(201, 162, 39, 0.25);
+  background: rgba(42, 16, 24, 0.5);
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.wha-icon-btn:hover {
+  background: rgba(42, 16, 24, 0.8);
+  border-color: rgba(201, 162, 39, 0.45);
+  box-shadow: 0 0 16px rgba(201, 162, 39, 0.15);
+}
+
+/* ── Battle scene ── */
 .glass {
-  background: rgba(20, 10, 15, 0.7);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(13, 6, 8, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
-/* Glow text */
 .glow-text {
-  text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
+  text-shadow: 0 0 10px currentColor, 0 0 24px currentColor;
 }
 
-/* Border glow on hover */
 .border-glow {
   transition: all 0.3s ease;
 }
 
 .border-glow:hover {
-  box-shadow: 0 0 15px rgba(243, 215, 121, 0.3);
-  border-color: rgba(243, 215, 121, 0.5);
+  box-shadow: 0 0 18px rgba(201, 162, 39, 0.3);
+  border-color: rgba(201, 162, 39, 0.5);
 }
 
 .enemy-altar {
@@ -81,23 +355,29 @@ canvas {
   gap: 16px;
   width: min(100%, 920px);
   margin: 0 auto;
-  padding: 12px 16px;
-  border: 1px solid rgba(215, 166, 63, 0.26);
-  border-radius: 8px;
+  padding: 14px 18px;
+  border: 1px solid rgba(201, 162, 39, 0.28);
+  border-radius: 6px;
   background:
-    linear-gradient(90deg, rgba(52, 17, 26, 0.92), rgba(25, 9, 13, 0.94)),
-    repeating-linear-gradient(90deg, rgba(242, 210, 123, 0.04) 0 1px, transparent 1px 18px);
-  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.36);
+    linear-gradient(90deg, rgba(42, 16, 24, 0.92), rgba(20, 8, 12, 0.94)),
+    repeating-linear-gradient(90deg, rgba(232, 200, 106, 0.04) 0 1px, transparent 1px 18px);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(201, 162, 39, 0.08);
+  animation: panel-rise 0.45s cubic-bezier(0.18, 0.84, 0.22, 1) both;
 }
 
 .enemy-portrait {
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
-  border: 1px solid rgba(242, 210, 123, 0.36);
+  width: 52px;
+  height: 52px;
+  border: 1px solid rgba(201, 162, 39, 0.38);
   border-radius: 6px;
-  background: linear-gradient(160deg, rgba(136, 37, 37, 0.46), rgba(20, 8, 10, 0.9));
+  background:
+    linear-gradient(160deg, rgba(139, 46, 58, 0.5), rgba(20, 8, 10, 0.92)),
+    radial-gradient(circle at 30% 30%, rgba(232, 200, 106, 0.1), transparent 60%);
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.3);
 }
 
 .battle-book {
@@ -106,19 +386,47 @@ canvas {
   grid-template-columns: minmax(280px, 0.9fr) minmax(320px, 1.25fr);
   gap: 0;
   overflow: hidden;
-  border: 1px solid rgba(95, 48, 22, 0.56);
-  border-radius: 8px;
-  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.42), inset 0 0 0 1px rgba(255, 240, 190, 0.22);
+  border: 1px solid rgba(166, 124, 61, 0.5);
+  border-radius: 6px;
+  box-shadow:
+    0 32px 80px rgba(0, 0, 0, 0.48),
+    inset 0 0 0 1px rgba(255, 240, 190, 0.18),
+    0 0 60px rgba(26, 74, 107, 0.08);
+  animation: panel-rise 0.55s cubic-bezier(0.18, 0.84, 0.22, 1) 0.1s both;
+}
+
+.battle-book::before,
+.battle-book::after {
+  content: "";
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-color: rgba(201, 162, 39, 0.35);
+  border-style: solid;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.battle-book::before {
+  top: 8px;
+  left: 8px;
+  border-width: 2px 0 0 2px;
+}
+
+.battle-book::after {
+  bottom: 8px;
+  right: 8px;
+  border-width: 0 2px 2px 0;
 }
 
 .book-spine {
   position: absolute;
   inset: 0 auto 0 42%;
   z-index: 2;
-  width: 18px;
+  width: 20px;
   transform: translateX(-50%);
-  background: linear-gradient(90deg, rgba(68, 34, 17, 0.32), rgba(255, 233, 174, 0.24), rgba(68, 34, 17, 0.34));
-  box-shadow: 0 0 32px rgba(50, 24, 12, 0.46);
+  background: linear-gradient(90deg, rgba(68, 34, 17, 0.38), rgba(255, 233, 174, 0.28), rgba(68, 34, 17, 0.4));
+  box-shadow: 0 0 36px rgba(50, 24, 12, 0.5);
   pointer-events: none;
 }
 
@@ -129,19 +437,19 @@ canvas {
 }
 
 .book-page-left {
-  border-right: 1px solid rgba(95, 48, 22, 0.28);
+  border-right: 1px solid rgba(166, 124, 61, 0.3);
 }
 
 .book-page-right {
-  background: rgba(255, 245, 205, 0.1);
+  background: rgba(255, 245, 205, 0.08);
 }
 
 .battle-ledger {
-  border: 1px solid rgba(95, 48, 22, 0.26);
-  border-radius: 6px;
+  border: 1px solid rgba(166, 124, 61, 0.28);
+  border-radius: 4px;
   padding: 12px;
-  background: rgba(255, 239, 190, 0.22);
-  box-shadow: inset 0 0 22px rgba(95, 48, 22, 0.08);
+  background: rgba(255, 239, 190, 0.18);
+  box-shadow: inset 0 0 24px rgba(95, 48, 22, 0.06);
 }
 
 .battle-token {
@@ -150,12 +458,13 @@ canvas {
   justify-content: center;
   gap: 6px;
   min-height: 36px;
-  border: 1px solid rgba(95, 48, 22, 0.22);
-  border-radius: 6px;
-  background: rgba(255, 239, 190, 0.2);
-  color: #321b12;
+  border: 1px solid rgba(166, 124, 61, 0.24);
+  border-radius: 4px;
+  background: rgba(255, 239, 190, 0.16);
+  color: #2a1810;
   font-size: 12px;
   font-weight: 700;
+  font-family: "JetBrains Mono", monospace;
 }
 
 .battle-marginalia {
@@ -164,10 +473,11 @@ canvas {
   max-height: 128px;
   overflow: auto;
   padding: 10px 12px;
-  border-left: 2px solid rgba(95, 48, 22, 0.32);
-  color: rgba(50, 27, 18, 0.78);
+  border-left: 2px solid rgba(166, 124, 61, 0.35);
+  color: rgba(42, 24, 16, 0.78);
   font-size: 12px;
-  line-height: 1.35;
+  line-height: 1.4;
+  font-style: italic;
 }
 
 .rune-chip {
@@ -176,14 +486,55 @@ canvas {
   gap: 5px;
   max-width: 100%;
   padding: 3px 7px;
-  border: 1px solid rgba(95, 48, 22, 0.22);
-  border-radius: 4px;
-  background: rgba(255, 239, 190, 0.24);
-  color: #4b2a19;
+  border: 1px solid rgba(166, 124, 61, 0.24);
+  border-radius: 3px;
+  background: rgba(255, 239, 190, 0.2);
+  color: #3b2114;
   font-size: 10px;
   font-weight: 700;
 }
 
+/* ── Modal overlays ── */
+.wha-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(6, 3, 4, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.wha-modal-panel {
+  position: relative;
+  width: 100%;
+  max-width: 22rem;
+  padding: 2rem;
+  text-align: center;
+  border-radius: 6px;
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(232, 200, 106, 0.15);
+  animation: panel-rise 0.4s cubic-bezier(0.18, 0.84, 0.22, 1) both;
+}
+
+.wha-modal-panel--victory {
+  background:
+    linear-gradient(160deg, rgba(30, 60, 40, 0.92), rgba(13, 6, 8, 0.95));
+  border-color: rgba(61, 139, 90, 0.45);
+}
+
+.wha-modal-panel--defeat {
+  background:
+    linear-gradient(160deg, rgba(60, 20, 28, 0.92), rgba(13, 6, 8, 0.95));
+  border-color: rgba(139, 46, 58, 0.45);
+}
+
+/* ── Magic VFX (Witch Hat Atelier refined) ── */
 .magic-vfx-layer {
   position: absolute;
   inset: 0;
@@ -191,175 +542,624 @@ canvas {
   display: grid;
   place-items: center;
   pointer-events: none;
-  mix-blend-mode: multiply;
+  overflow: hidden;
+}
+
+.magic-vfx-stage {
+  --vfx-color: #2d6a8f;
+  --vfx-secondary: #e8c86a;
+  --vfx-tertiary: #1a4a6b;
+  --vfx-wash: rgba(45, 106, 143, 0.22);
+  --vfx-rotation: 0deg;
+  --vfx-duration: 1480ms;
+  --vfx-bloom: 1;
+  --vfx-impact: 1;
+  --vfx-y: 0px;
+  --vfx-drift-x: 0px;
+  --vfx-drift-y: 0px;
+  position: relative;
+  width: min(78%, 420px);
+  aspect-ratio: 1;
+  animation: magic-vfx-stage-life var(--vfx-duration) cubic-bezier(0.18, 0.84, 0.22, 1) both;
+}
+
+.magic-vfx-dramatic { width: min(88%, 480px); }
+.magic-vfx-quiet { width: min(68%, 360px); }
+.magic-vfx-destination-opponent { --vfx-y: -42px; }
+.magic-vfx-destination-caster { --vfx-y: 36px; }
+.magic-vfx-destination-field { --vfx-y: 0px; }
+
+/* Imagine texture layers — screen blend over procedural glow */
+.magic-vfx-texture {
+  position: absolute;
+  inset: 0;
+  background-image: var(--vfx-texture-src, none);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  filter: saturate(1.15) contrast(1.08);
+}
+
+.magic-vfx-texture-bloom {
+  --vfx-texture-src: var(--vfx-texture-bloom);
+  inset: -55%;
+  opacity: 0.92;
+  animation: magic-vfx-texture-bloom var(--vfx-duration) cubic-bezier(0.18, 0.84, 0.22, 1) both;
+}
+
+.magic-vfx-texture-burst {
+  --vfx-texture-src: var(--vfx-texture-burst);
+  inset: 4%;
+  z-index: 1;
+  opacity: 0;
+  animation: magic-vfx-texture-burst var(--vfx-duration) cubic-bezier(0.18, 0.84, 0.22, 1) 0.08s both;
+}
+
+.magic-vfx-texture-impact {
+  --vfx-texture-src: var(--vfx-texture-impact);
+  inset: -30% -80%;
+  opacity: 0;
+  mix-blend-mode: plus-lighter;
+  animation: magic-vfx-texture-impact calc(var(--vfx-duration) * 0.42) cubic-bezier(0.18, 0.84, 0.22, 1) 0.38s both;
+}
+
+.magic-vfx-texture-seal {
+  --vfx-texture-src: var(--vfx-texture-seal);
+  inset: -8%;
+  opacity: 0;
+  mix-blend-mode: screen;
+  filter: saturate(1.25) hue-rotate(calc(var(--vfx-hue, 0deg)));
+  animation: magic-vfx-texture-seal 0.55s cubic-bezier(0.18, 0.84, 0.22, 1) 0.1s both;
+}
+
+/* Phase 1: ink bloom on parchment */
+.magic-vfx-ink-bloom {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 18%;
+  height: 18%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  overflow: visible;
+  background: radial-gradient(
+    circle,
+    var(--vfx-wash) 0%,
+    color-mix(in srgb, var(--vfx-color) 40%, transparent) 35%,
+    transparent 72%
+  );
+  box-shadow: 0 0 calc(48px * var(--vfx-bloom)) var(--vfx-color);
+  animation: magic-vfx-ink-bloom var(--vfx-duration) cubic-bezier(0.18, 0.84, 0.22, 1) both;
+}
+
+.magic-vfx-ink-residual {
+  position: absolute;
+  inset: 22%;
+  border-radius: 50%;
+  background: radial-gradient(circle, transparent 55%, color-mix(in srgb, var(--vfx-tertiary) 12%, transparent) 100%);
+  opacity: 0;
+  animation: magic-vfx-residual calc(var(--vfx-duration) * 0.85) ease-out 0.35s both;
 }
 
 .magic-vfx-core {
-  --vfx-color: #f2d27b;
-  --vfx-wash: rgba(242, 210, 123, 0.16);
-  --vfx-rotation: 0deg;
-  --vfx-y: 0px;
-  position: relative;
-  width: min(72%, 390px);
-  aspect-ratio: 1;
-  border-radius: 50%;
+  position: absolute;
+  inset: 0;
   transform: rotate(var(--vfx-rotation));
-  animation: magic-vfx-flare 980ms cubic-bezier(0.18, 0.84, 0.22, 1) both;
+  animation: magic-vfx-core-lift var(--vfx-duration) cubic-bezier(0.18, 0.84, 0.22, 1) both;
 }
 
-.magic-vfx-core::before,
-.magic-vfx-core::after {
+.magic-vfx-core::before {
   content: "";
   position: absolute;
-  inset: 28%;
+  inset: 26%;
   border-radius: 50%;
-  background: radial-gradient(circle, var(--vfx-wash), transparent 66%);
-  box-shadow: 0 0 38px var(--vfx-color);
+  background: radial-gradient(circle, var(--vfx-wash), transparent 68%);
+  opacity: 0.7;
+  animation: magic-vfx-core-pulse calc(var(--vfx-duration) * 0.6) ease-in-out both;
 }
 
-.magic-vfx-core::after {
-  inset: 43%;
-  background: var(--vfx-color);
-  opacity: 0.22;
+.magic-vfx-mandala {
+  position: absolute;
+  inset: 14%;
+  z-index: 3;
+  overflow: visible;
+  filter: drop-shadow(0 0 8px var(--vfx-color)) drop-shadow(0 0 18px color-mix(in srgb, var(--vfx-secondary) 50%, transparent));
 }
 
-.magic-vfx-target-enemy {
-  --vfx-y: -34px;
+/* SVG trace animation — ink drawing the formula */
+.magic-vfx-trace {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0;
+  animation: magic-vfx-draw-stroke 0.72s cubic-bezier(0.22, 0.84, 0.32, 1) both;
 }
 
-.magic-vfx-target-self {
-  --vfx-y: 28px;
+.magic-vfx-trace-outer { animation-duration: 0.85s; }
+.magic-vfx-trace-inner { animation-duration: 0.55s; }
+.magic-vfx-trace-channel { animation-duration: 0.62s; }
+.magic-vfx-trace-invalid { stroke-dasharray: 0.15 0.12; animation-name: magic-vfx-draw-flicker; }
+
+.magic-vfx-sigil-burst {
+  opacity: 0;
+  transform-origin: center;
+  animation: magic-vfx-sigil-burst 0.55s cubic-bezier(0.18, 0.84, 0.22, 1) both;
+}
+
+.magic-vfx-sigil-core {
+  opacity: 0;
+  animation: magic-vfx-sigil-ignite 0.48s cubic-bezier(0.18, 0.84, 0.22, 1) both;
+}
+
+.magic-vfx-key-flash {
+  opacity: 0;
+  animation: magic-vfx-key-flash 0.42s cubic-bezier(0.18, 0.84, 0.22, 1) both;
 }
 
 .magic-vfx-glyph {
   position: absolute;
   inset: 50% auto auto 50%;
-  z-index: 2;
-  opacity: 0.72;
+  width: 28%;
+  height: 28%;
+  border-radius: 50%;
   transform: translate(-50%, -50%);
-  filter: drop-shadow(0 0 10px var(--vfx-color));
-  animation: magic-vfx-glyph 680ms cubic-bezier(0.18, 0.84, 0.22, 1) both;
+  background: radial-gradient(circle, var(--vfx-color), transparent 70%);
+  filter: drop-shadow(0 0 14px var(--vfx-color));
+  animation: magic-vfx-glyph-bloom 0.7s cubic-bezier(0.18, 0.84, 0.22, 1) both;
+}
+
+.magic-vfx-hex-ring {
+  position: absolute;
+  inset: 20%;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .magic-vfx-ring {
   position: absolute;
-  inset: 24%;
-  border: 2px solid var(--vfx-color);
+  inset: 22%;
+  border: 1.5px solid var(--vfx-color);
   border-radius: 50%;
   opacity: 0;
-  animation: magic-vfx-ring 760ms cubic-bezier(0.2, 0, 0, 1) both;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--vfx-color) 60%, transparent);
+  animation: magic-vfx-ring-expand 0.82s cubic-bezier(0.2, 0, 0, 1) both;
 }
 
-.magic-vfx-particle {
-  position: absolute;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--vfx-color);
-  box-shadow: 0 0 14px var(--vfx-color);
-  opacity: 0;
-  animation: magic-vfx-particle 820ms cubic-bezier(0.18, 0.84, 0.22, 1) both;
+.magic-vfx-ring-ripple .magic-vfx-ring {
+  border-style: dotted;
+  animation-name: magic-vfx-ring-ripple;
 }
 
-.magic-vfx-mend .magic-vfx-particle {
-  animation-name: magic-vfx-particle-in;
+.magic-vfx-ring-hexagon .magic-vfx-ring {
+  border-radius: 0;
+  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+}
+
+.magic-vfx-ring-star .magic-vfx-ring {
+  border-color: var(--vfx-secondary);
+  box-shadow: 0 0 16px var(--vfx-secondary);
 }
 
 .magic-vfx-ward .magic-vfx-ring {
   border-style: double;
+  border-color: var(--vfx-secondary);
+  animation-name: magic-vfx-ring-ward;
 }
 
+/* Particles */
+.magic-vfx-particle {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--vfx-color);
+  box-shadow: 0 0 12px var(--vfx-color), 0 0 4px var(--vfx-secondary);
+  opacity: 0;
+  animation: magic-vfx-particle-burst calc(var(--vfx-duration) * 0.55) cubic-bezier(0.18, 0.84, 0.22, 1) both;
+}
+
+.magic-vfx-spark {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--vfx-secondary);
+  box-shadow: 0 0 8px var(--vfx-secondary);
+  opacity: 0;
+  animation: magic-vfx-spark-fly calc(var(--vfx-duration) * 0.45) cubic-bezier(0.15, 0.9, 0.25, 1) both;
+}
+
+.magic-vfx-particle-ember .magic-vfx-particle {
+  border-radius: 30% 70% 50% 50%;
+  background: linear-gradient(135deg, var(--vfx-secondary), var(--vfx-color));
+  animation-name: magic-vfx-ember-rise;
+}
+
+.magic-vfx-particle-droplet .magic-vfx-particle {
+  border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+  animation-name: magic-vfx-droplet-fall;
+}
+
+.magic-vfx-particle-wisp .magic-vfx-particle {
+  width: 10px !important;
+  height: 4px !important;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--vfx-color), transparent);
+  animation-name: magic-vfx-wisp-drift;
+}
+
+.magic-vfx-particle-shard .magic-vfx-particle {
+  border-radius: 2px;
+  transform: rotate(45deg);
+  animation-name: magic-vfx-shard-scatter;
+}
+
+.magic-vfx-particle-arc .magic-vfx-spark {
+  width: 2px;
+  height: 14px;
+  border-radius: 1px;
+  background: linear-gradient(180deg, var(--vfx-secondary), transparent);
+  animation-name: magic-vfx-arc-strike;
+}
+
+.magic-vfx-mend .magic-vfx-particle { animation-name: magic-vfx-particle-mend; }
+.magic-vfx-mend .magic-vfx-spark { animation-name: magic-vfx-spark-mend; }
+
+/* Impact lance toward destination */
+.magic-vfx-impact {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 28%;
+  height: 12%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(180deg, var(--vfx-secondary), var(--vfx-color), transparent);
+  border-radius: 2px;
+  opacity: 0;
+  filter: blur(0.5px);
+  box-shadow: 0 0 20px var(--vfx-color);
+  overflow: visible;
+  animation: magic-vfx-impact-lance calc(var(--vfx-duration) * 0.35) cubic-bezier(0.18, 0.84, 0.22, 1) 0.42s both;
+}
+
+.magic-vfx-destination-opponent .magic-vfx-impact {
+  transform: translate(-50%, -50%) rotate(-90deg);
+}
+
+.magic-vfx-destination-caster .magic-vfx-impact {
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
+.magic-vfx-seal-flash {
+  position: absolute;
+  inset: 30%;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--vfx-secondary) 55%, transparent);
+  opacity: 0;
+  overflow: visible;
+  animation: magic-vfx-seal-flash 0.38s cubic-bezier(0.18, 0.84, 0.22, 1) 0.12s both;
+}
+
+/* Failure: ink dispersal */
+.magic-vfx-failure .magic-vfx-stage,
 .magic-vfx-fizzle {
-  filter: grayscale(0.55);
-  opacity: 0.76;
+  filter: saturate(0.55);
 }
 
-.magic-vfx-dramatic {
-  width: min(82%, 460px);
+.magic-vfx-failure .magic-vfx-ink-bloom {
+  animation-name: magic-vfx-fizzle-bloom;
 }
 
-@keyframes magic-vfx-flare {
-  0% { opacity: 0; transform: translateY(0) rotate(var(--vfx-rotation)) scale(0.74); }
-  24% { opacity: 1; }
-  100% { opacity: 0; transform: translateY(var(--vfx-y)) rotate(var(--vfx-rotation)) scale(1.08); }
+.magic-vfx-failure .magic-vfx-texture-burst,
+.magic-vfx-fizzle .magic-vfx-texture-burst {
+  filter: saturate(0.45) brightness(0.75);
+  animation-name: magic-vfx-texture-fizzle;
 }
 
-@keyframes magic-vfx-glyph {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.72); }
-  42% { opacity: 0.9; }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.08); }
+.magic-vfx-failure .magic-vfx-texture-bloom {
+  animation-name: magic-vfx-texture-fizzle;
 }
 
-@keyframes magic-vfx-ring {
-  0% { opacity: 0; transform: scale(0.58); }
-  26% { opacity: 0.76; }
-  100% { opacity: 0; transform: scale(1.42); }
+.magic-vfx-failure .magic-vfx-particle {
+  animation-name: magic-vfx-fizzle-scatter;
 }
 
-@keyframes magic-vfx-particle {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
-  28% { opacity: 0.88; }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.25); }
+.magic-vfx-failure .magic-vfx-trace {
+  animation-name: magic-vfx-draw-flicker;
+  stroke: var(--vfx-tertiary);
 }
 
-@keyframes magic-vfx-particle-in {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(1.25); }
-  28% { opacity: 0.88; }
+.magic-vfx-failure .magic-vfx-impact {
+  display: none;
+}
+
+/* ── Keyframes ── */
+@keyframes magic-vfx-stage-life {
+  0% { opacity: 0; transform: scale(0.82); }
+  8% { opacity: 1; transform: scale(1); }
+  72% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.04) translateY(var(--vfx-y)); }
+}
+
+@keyframes magic-vfx-ink-bloom {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
+  18% { opacity: 0.95; transform: translate(-50%, -50%) scale(calc(2.8 * var(--vfx-bloom))); }
+  55% { opacity: 0.45; transform: translate(-50%, -50%) scale(calc(3.4 * var(--vfx-bloom))); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(calc(4.2 * var(--vfx-bloom))); }
+}
+
+@keyframes magic-vfx-residual {
+  0% { opacity: 0; transform: scale(0.9); }
+  30% { opacity: 0.35; }
+  100% { opacity: 0; transform: scale(1.15); }
+}
+
+@keyframes magic-vfx-core-lift {
+  0% { transform: rotate(var(--vfx-rotation)) scale(0.88); }
+  20% { transform: rotate(var(--vfx-rotation)) scale(1); }
+  100% { transform: rotate(calc(var(--vfx-rotation) + 8deg)) scale(1.06) translateY(var(--vfx-y)); }
+}
+
+@keyframes magic-vfx-core-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(0.95); }
+  40% { opacity: 0.85; transform: scale(1.05); }
+}
+
+@keyframes magic-vfx-draw-stroke {
+  0% { stroke-dashoffset: 1; opacity: 0; }
+  8% { opacity: 0.9; }
+  100% { stroke-dashoffset: 0; opacity: 0.75; }
+}
+
+@keyframes magic-vfx-draw-flicker {
+  0% { stroke-dashoffset: 1; opacity: 0; }
+  20% { opacity: 0.5; stroke-dashoffset: 0.4; }
+  40% { opacity: 0.2; stroke-dashoffset: 0.7; }
+  60% { opacity: 0.35; stroke-dashoffset: 0.3; }
+  100% { opacity: 0; stroke-dashoffset: 1; }
+}
+
+@keyframes magic-vfx-sigil-burst {
+  0% { opacity: 0; r: 1; }
+  35% { opacity: 0.85; }
+  100% { opacity: 0; r: 8; }
+}
+
+@keyframes magic-vfx-sigil-ignite {
+  0% { opacity: 0; transform: scale(0.3); }
+  40% { opacity: 1; transform: scale(1.3); }
+  100% { opacity: 0; transform: scale(0.8); }
+}
+
+@keyframes magic-vfx-key-flash {
+  0% { opacity: 0; transform: scale(0.6) rotate(0deg); }
+  45% { opacity: 0.95; transform: scale(1.15) rotate(12deg); }
+  100% { opacity: 0; transform: scale(0.9) rotate(0deg); }
+}
+
+@keyframes magic-vfx-glyph-bloom {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+  40% { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.2); }
+}
+
+@keyframes magic-vfx-ring-expand {
+  0% { opacity: 0; transform: scale(0.5); }
+  22% { opacity: calc(0.7 * var(--vfx-impact)); }
+  100% { opacity: 0; transform: scale(1.55); }
+}
+
+@keyframes magic-vfx-ring-ripple {
+  0% { opacity: 0; transform: scale(0.6); border-width: 3px; }
+  30% { opacity: 0.65; }
+  100% { opacity: 0; transform: scale(1.7); border-width: 1px; }
+}
+
+@keyframes magic-vfx-ring-ward {
+  0% { opacity: 0; transform: scale(0.55) rotate(0deg); }
+  25% { opacity: 0.8; }
+  100% { opacity: 0; transform: scale(1.35) rotate(30deg); }
+}
+
+@keyframes magic-vfx-particle-burst {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
+  25% { opacity: 0.92; }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--vfx-drift-x)), calc(-50% + var(--vfx-drift-y))) scale(0.4);
+  }
+}
+
+@keyframes magic-vfx-spark-fly {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+  20% { opacity: 1; }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--vfx-drift-x) * 1.4), calc(-50% + var(--vfx-drift-y) * 1.4)) scale(0.2);
+  }
+}
+
+@keyframes magic-vfx-ember-rise {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+  30% { opacity: 0.95; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--vfx-drift-x) * 0.5), calc(-50% - 40px)) scale(0.1); }
+}
+
+@keyframes magic-vfx-droplet-fall {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+  25% { opacity: 0.85; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--vfx-drift-x) * 0.3), calc(-50% + 36px)) scale(0.6); }
+}
+
+@keyframes magic-vfx-wisp-drift {
+  0% { opacity: 0; transform: translate(-50%, -50%) scaleX(0.3); }
+  30% { opacity: 0.7; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--vfx-drift-x)), calc(-50% + var(--vfx-drift-y))) scaleX(1.8); }
+}
+
+@keyframes magic-vfx-shard-scatter {
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(0deg) scale(0.3); }
+  28% { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--vfx-drift-x)), calc(-50% + var(--vfx-drift-y))) rotate(180deg) scale(0.5); }
+}
+
+@keyframes magic-vfx-arc-strike {
+  0% { opacity: 0; transform: translate(-50%, -50%) scaleY(0); }
+  15% { opacity: 1; transform: translate(-50%, -50%) scaleY(1.2); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--vfx-drift-x)), calc(-50% + var(--vfx-drift-y))) scaleY(0.2); }
+}
+
+@keyframes magic-vfx-particle-mend {
+  0% { opacity: 0; transform: translate(calc(-50% + var(--vfx-drift-x)), calc(-50% + var(--vfx-drift-y))) scale(0.5); }
+  35% { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
+}
+
+@keyframes magic-vfx-spark-mend {
+  0% { opacity: 0; transform: translate(calc(-50% + var(--vfx-drift-x)), calc(-50% + var(--vfx-drift-y))) scale(0); }
+  30% { opacity: 0.8; }
   100% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
 }
 
+@keyframes magic-vfx-impact-lance {
+  0% { opacity: 0; height: 0; }
+  25% { opacity: calc(0.85 * var(--vfx-impact)); height: 55%; }
+  100% { opacity: 0; height: 75%; }
+}
+
+@keyframes magic-vfx-seal-flash {
+  0% { opacity: 0; transform: scale(0.6); }
+  35% { opacity: 0.9; transform: scale(1.15); }
+  100% { opacity: 0; transform: scale(1.4); }
+}
+
+@keyframes magic-vfx-fizzle-bloom {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+  25% { opacity: 0.5; transform: translate(-50%, -50%) scale(1.8); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(2.4); filter: blur(4px); }
+}
+
+@keyframes magic-vfx-fizzle-scatter {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+  20% { opacity: 0.5; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--vfx-drift-x) * 0.6), calc(-50% + var(--vfx-drift-y) * 0.6)) scale(0.1); filter: blur(2px); }
+}
+
+@keyframes magic-vfx-texture-bloom {
+  0% { opacity: 0; transform: scale(0.35) rotate(0deg); }
+  16% { opacity: 0.95; transform: scale(calc(1.05 * var(--vfx-bloom))) rotate(6deg); }
+  50% { opacity: 0.55; transform: scale(calc(1.25 * var(--vfx-bloom))) rotate(-4deg); }
+  100% { opacity: 0; transform: scale(calc(1.45 * var(--vfx-bloom))) rotate(0deg); }
+}
+
+@keyframes magic-vfx-texture-burst {
+  0% { opacity: 0; transform: scale(0.55) rotate(calc(var(--vfx-rotation) * 0.5)); }
+  22% { opacity: 0.88; transform: scale(1) rotate(var(--vfx-rotation)); }
+  62% { opacity: 0.42; transform: scale(1.08) rotate(calc(var(--vfx-rotation) + 4deg)); }
+  100% { opacity: 0; transform: scale(1.18) rotate(calc(var(--vfx-rotation) + 8deg)); }
+}
+
+@keyframes magic-vfx-texture-impact {
+  0% { opacity: 0; transform: scale(0.4); }
+  18% { opacity: calc(0.95 * var(--vfx-impact)); transform: scale(1.05); }
+  100% { opacity: 0; transform: scale(1.35); }
+}
+
+@keyframes magic-vfx-texture-seal {
+  0% { opacity: 0; transform: scale(0.72) rotate(-12deg); }
+  30% { opacity: 0.92; transform: scale(1.02) rotate(0deg); }
+  100% { opacity: 0; transform: scale(1.22) rotate(8deg); }
+}
+
+@keyframes magic-vfx-texture-fizzle {
+  0% { opacity: 0; transform: scale(0.5); filter: saturate(0.4) blur(0); }
+  22% { opacity: 0.45; transform: scale(1.1); }
+  100% { opacity: 0; transform: scale(1.35); filter: saturate(0.3) blur(3px); }
+}
+
+.magic-vfx-element-IGNIS .magic-vfx-texture-burst { filter: saturate(1.3) contrast(1.1) hue-rotate(-4deg); }
+.magic-vfx-element-AQUA .magic-vfx-texture-burst { filter: saturate(1.2) hue-rotate(8deg); }
+.magic-vfx-element-LUX .magic-vfx-texture-burst { filter: saturate(1.35) brightness(1.1); }
+.magic-vfx-element-UMBRA .magic-vfx-texture-burst { filter: saturate(1.1) hue-rotate(18deg); }
+.magic-vfx-element-FULMEN .magic-vfx-texture-burst { filter: saturate(1.4) brightness(1.15); }
+.magic-vfx-element-TERRA .magic-vfx-texture-burst { filter: saturate(0.95) hue-rotate(-18deg); }
+.magic-vfx-element-GELU .magic-vfx-texture-burst { filter: saturate(1.15) hue-rotate(12deg) brightness(1.05); }
+.magic-vfx-element-VENTUS .magic-vfx-texture-burst { filter: saturate(1.1) hue-rotate(-28deg); }
+.magic-vfx-element-VITA .magic-vfx-texture-burst { filter: saturate(1.2) hue-rotate(-42deg) brightness(1.08); }
+.magic-vfx-element-SANGUIS .magic-vfx-texture-burst { filter: saturate(1.25) hue-rotate(-8deg); }
+.magic-vfx-element-MENS .magic-vfx-texture-burst { filter: saturate(1.1) hue-rotate(24deg); }
+.magic-vfx-dramatic .magic-vfx-texture-burst { inset: -2%; }
+.magic-vfx-dramatic .magic-vfx-texture-bloom { inset: -65%; }
+
+.spell-effect-texture {
+  animation: spell-effect-texture-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes spell-effect-texture-pulse {
+  0%, 100% { opacity: 0.16; transform: scale(0.96) rotate(-4deg); }
+  50% { opacity: 0.28; transform: scale(1.04) rotate(2deg); }
+}
+
+/* ── Enemy cast preview animations ── */
+.enemy-cast-ring {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: enemy-cast-ring-draw 1.8s cubic-bezier(0.22, 0.84, 0.32, 1) infinite;
+}
+
+.enemy-cast-stroke {
+  stroke-dasharray: var(--stroke-len, 100);
+  stroke-dashoffset: var(--stroke-len, 100);
+  animation: enemy-cast-stroke-draw 1.4s cubic-bezier(0.18, 0.84, 0.22, 1) infinite;
+}
+
+.enemy-cast-stroke-glow {
+  opacity: 0;
+  animation: enemy-cast-glow-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes enemy-cast-ring-draw {
+  0% { stroke-dashoffset: 1; opacity: 0.2; }
+  40% { stroke-dashoffset: 0; opacity: 0.5; }
+  100% { stroke-dashoffset: 0; opacity: 0.15; }
+}
+
+@keyframes enemy-cast-stroke-draw {
+  0% { stroke-dashoffset: var(--stroke-len, 100); opacity: 0.3; }
+  50% { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0.55; }
+}
+
+@keyframes enemy-cast-glow-pulse {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.45; }
+}
+
 @media (max-width: 920px) {
-  .battle-book {
-    grid-template-columns: 1fr;
-  }
-
-  .book-spine {
-    display: none;
-  }
-
+  .battle-book { grid-template-columns: 1fr; }
+  .book-spine { display: none; }
   .book-page-left {
     border-right: 0;
-    border-bottom: 1px solid rgba(95, 48, 22, 0.28);
+    border-bottom: 1px solid rgba(166, 124, 61, 0.3);
   }
 }
 
 @media (max-width: 560px) {
-  .enemy-altar {
-    align-items: flex-start;
-    gap: 10px;
-    padding: 10px;
-  }
-
-  .enemy-portrait {
-    width: 38px;
-    height: 38px;
-  }
-
-  .book-page {
-    padding: 14px;
-  }
-
-  .battle-token {
-    min-height: 32px;
-    font-size: 11px;
-  }
-
-  .magic-vfx-core {
-    width: min(86%, 330px);
-  }
+  .enemy-altar { align-items: flex-start; gap: 10px; padding: 10px; }
+  .enemy-portrait { width: 40px; height: 40px; }
+  .book-page { padding: 14px; }
+  .battle-token { min-height: 32px; font-size: 11px; }
+  .magic-vfx-stage { width: min(86%, 340px); }
+  .wha-rune-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .magic-vfx-core,
-  .magic-vfx-glyph,
-  .magic-vfx-ring,
-  .magic-vfx-particle {
-    animation-duration: 1ms;
-    animation-iteration-count: 1;
+  .magic-vfx-stage, .magic-vfx-core, .magic-vfx-ink-bloom, .magic-vfx-ink-residual,
+  .magic-vfx-glyph, .magic-vfx-mandala, .magic-vfx-trace, .magic-vfx-ring,
+  .magic-vfx-particle, .magic-vfx-spark, .magic-vfx-impact, .magic-vfx-seal-flash,
+  .magic-vfx-sigil-burst, .magic-vfx-sigil-core, .magic-vfx-key-flash,
+  .enemy-cast-ring, .enemy-cast-stroke, .enemy-cast-stroke-glow,
+  .wha-emblem-ring::before, .wha-emblem-ring::after,
+  .wha-scene-candles, .wha-cta::before {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
   }
-
-  .animate-pulse,
-  .animate-ping {
-    animation: none !important;
-  }
+  .animate-pulse, .animate-ping, .animate-float { animation: none !important; }
 }

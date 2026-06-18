@@ -6,16 +6,14 @@ export interface EnemyStrokeRenderOptions {
   readonly noise?: number;
 }
 
-const GLYPH_POSITIONS: readonly { readonly x: number; readonly y: number; readonly scale: number }[] = [
-  { x: 50, y: 50, scale: 0.34 },
-  { x: 50, y: 26, scale: 0.2 },
-  { x: 70, y: 50, scale: 0.2 },
-  { x: 50, y: 72, scale: 0.2 },
-  { x: 30, y: 50, scale: 0.2 },
-  { x: 66, y: 34, scale: 0.16 },
-  { x: 66, y: 66, scale: 0.16 },
-  { x: 34, y: 66, scale: 0.16 },
-  { x: 34, y: 34, scale: 0.16 },
+const KEY_POSITIONS: readonly { readonly x: number; readonly y: number; readonly scale: number }[] = [
+  { x: 70, y: 50, scale: 0.24 },
+  { x: 50, y: 72, scale: 0.24 },
+  { x: 30, y: 50, scale: 0.24 },
+  { x: 66, y: 34, scale: 0.19 },
+  { x: 66, y: 66, scale: 0.19 },
+  { x: 34, y: 66, scale: 0.19 },
+  { x: 34, y: 34, scale: 0.19 },
 ];
 
 const makeRandom = (seed: number): (() => number) => {
@@ -43,7 +41,11 @@ const getPlacement = (template: GlyphTemplate, index: number) => {
     return { x: 50, y: 50, scale: 1 };
   }
 
-  return GLYPH_POSITIONS[index % GLYPH_POSITIONS.length];
+  if (template.semantic_role === "element" || template.semantic_role === "derived") {
+    return { x: 50, y: 50, scale: 0.3 };
+  }
+
+  return KEY_POSITIONS[Math.max(0, index - 2) % KEY_POSITIONS.length];
 };
 
 export const renderEnemySpellStrokes = (
@@ -78,6 +80,8 @@ export const renderEnemySpellStrokes = (
         id: `enemy-stroke-${strokeId++}`,
         points,
         timestamp,
+        semanticGroupId: `enemy-template-${templateIndex}`,
+        semanticTemplateId: template.id,
       };
     });
   });

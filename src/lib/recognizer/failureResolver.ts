@@ -7,7 +7,7 @@ import type {
   TopologyValidationCheck,
   TopologyValidationResult,
 } from "@/types/recognition";
-import type { SpellGraphCompileIssue } from "@/types/spellGraph";
+import type { FormulaIssueV2 } from "@/types/magicFormulaV2";
 import { getStrokePathLength } from "@/lib/recognizer/resampleStrokes";
 
 export type DiegeticFailureKind =
@@ -15,7 +15,6 @@ export type DiegeticFailureKind =
   | "miscast"
   | "leak"
   | "backfire"
-  | "wrong_target"
   | "unknown"
   | "overload";
 
@@ -43,7 +42,7 @@ export interface DiegeticFailureEffect {
   readonly canDamageCaster: boolean;
   readonly casterDamageHint: number;
   readonly consumesInk: boolean;
-  readonly unstableTarget: boolean;
+  readonly unstableRoute: boolean;
 }
 
 export interface DiegeticFailureResolution {
@@ -58,11 +57,11 @@ export interface DiegeticFailureResolution {
 }
 
 export interface FailureResolverInput {
-  readonly outcome?: RecognitionOutcome | "graph_invalid";
+  readonly outcome?: RecognitionOutcome | "formula_invalid";
   readonly match?: TemplateMatchResult;
   readonly topology?: TopologyValidationResult;
   readonly semantic?: SemanticMarginResult;
-  readonly graphIssues?: readonly SpellGraphCompileIssue[];
+  readonly formulaIssues?: readonly FormulaIssueV2[];
   readonly ink?: InkSimulationResult;
   readonly strokes?: readonly RecognitionStroke[];
 }
@@ -215,11 +214,6 @@ const buildSignals = (
   return { geometry, topology, ambiguity, dynamics, ink, total };
 };
 
-const hasTargetIssue = (input: FailureResolverInput): boolean =>
-  input.graphIssues?.some((issue) =>
-    issue.code.includes("target") || issue.message.toLowerCase().includes("target"),
-  ) ?? false;
-
 const isUnknownInput = (input: FailureResolverInput): boolean =>
   input.match?.rejectionReason === "unknown" ||
   input.match?.scribble.outcome === "unknown";
@@ -238,10 +232,6 @@ const chooseFailureKind = (
 
   if (input.outcome === "backfire") {
     return "backfire";
-  }
-
-  if (hasTargetIssue(input)) {
-    return "wrong_target";
   }
 
   if (isUnknownInput(input)) {
@@ -278,54 +268,68 @@ const getPrimaryTechnicalCause = (
   const semanticFailure = input.semantic?.reasons.find((reason) => reason.severity === "failure");
   if (semanticFailure) return semanticFailure.message;
 
-  const graphIssue = input.graphIssues?.[0];
-  if (graphIssue) return graphIssue.message;
+  const formulaIssue = input.formulaIssues?.[0];
+  if (formulaIssue) return formulaIssue.message;
 
   return "The drawing did not satisfy the deterministic recognition grammar.";
+};
+
+const formulaIssueFeedback = (issue: FormulaIssueV2 | undefined): string | null => {
+  switch (issue?.code) {
+    case "missing_casting_circle":
+      return "Trace um circulo grande ao redor de toda a formula.";
+    case "casting_circle_open":
+      return "Feche a abertura do circulo externo, terminando o traco perto de onde comecou.";
+    case "missing_central_sigil":
+      return "Desenhe um sigilo de elemento no centro do circulo.";
+    case "channel_crosses_casting_circle":
+      return "Mantenha todos os canais dentro do circulo externo.";
+    case "straight_key_channel":
+      return "Refaca a ligacao entre as chaves com uma curva suave.";
+    default:
+      return null;
+  }
 };
 
 const getMessages = (
   kind: DiegeticFailureKind,
   severity: FailureSeverity,
+  input: FailureResolverInput,
 ): Pick<DiegeticFailureResolution, "message" | "playerFeedback"> => {
   const intensity = severity === "critical" || severity === "severe" ? "forte" : "leve";
+  const issueFeedback = formulaIssueFeedback(input.formulaIssues?.[0]);
 
   switch (kind) {
     case "backfire":
       return {
         message: "O circuito fechou contra a mao da conjuradora.",
-        playerFeedback: `O retorno arcano foi ${intensity}: corrija loops criticos e evite signos perigosos antes de tentar de novo.`,
+        playerFeedback: `O retorno foi ${intensity}. Apague tracos que se cruzam e mantenha as ligacoes dentro do circulo externo.`,
       };
     case "miscast":
       return {
         message: "A intencao ficou ambigua e a magia desviou de forma.",
-        playerFeedback: "Aumente a diferenca entre este glifo e candidatos parecidos; a margem semantica ficou estreita demais.",
+        playerFeedback: "Um simbolo ficou parecido com outro. Reforce suas pontas, curvas e marcas internas antes de conjurar novamente.",
       };
     case "leak":
       return {
         message: "A tinta vazou por uma conexao fraca antes de virar feitico.",
-        playerFeedback: "Reforce fechamento, portas e tracos ruidosos; a estrutura quase compilou, mas perdeu estabilidade.",
-      };
-    case "wrong_target":
-      return {
-        message: "O alvo inscrito nao encontrou uma rota valida no circulo.",
-        playerFeedback: "Inclua um alvo legal ou conecte a intencao ao alvo padrao da gramatica.",
+        playerFeedback: "Feche os contornos e refaca ligacoes interrompidas ou que ultrapassam o circulo externo.",
       };
     case "unknown":
       return {
-        message: "O circulo nao reconheceu uma forma da ontologia conhecida.",
-        playerFeedback: "Desenhe um glifo conhecido com menos sobretraco e menos fragmentos soltos.",
+        message: "O circulo nao reconheceu um dos simbolos.",
+        playerFeedback: "Compare o simbolo com o Guia e redesenhe-o com um contorno limpo, sem fragmentos soltos.",
       };
     case "overload":
       return {
         message: "A tinta entrou em sobrecarga e saturou o circuito.",
-        playerFeedback: "Reduza custo, risco ou volatilidade da tinta; a falha pode causar dano quando o combate aplicar backfire.",
+        playerFeedback: "Simplifique a formula: remova uma chave ou ligacao antes de tentar novamente.",
       };
     case "fizzle":
     default:
       return {
         message: "A centelha apagou antes da magia nascer.",
-        playerFeedback: "O desenho falhou cedo: falta energia estrutural, tinta ou confianca minima para compilar.",
+        playerFeedback: issueFeedback ?? "Confira se o circulo esta fechado, se ha um sigilo no centro e se as chaves estao ligadas.",
       };
   }
 };
@@ -343,7 +347,7 @@ const getEffect = (
     consumesInk:
       (kind === "leak" || kind === "miscast" || kind === "overload") &&
       ink?.failureCode !== "insufficient_ink",
-    unstableTarget: kind === "wrong_target" || kind === "miscast",
+    unstableRoute: kind === "miscast",
   };
 };
 
@@ -354,7 +358,7 @@ export const resolveDiegeticFailure = (
   const signals = buildSignals(input, dynamicMetrics);
   const kind = chooseFailureKind(input, signals);
   const severity = getSeverity(signals.total);
-  const messages = getMessages(kind, severity);
+  const messages = getMessages(kind, severity, input);
 
   return {
     kind,

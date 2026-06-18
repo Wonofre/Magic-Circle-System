@@ -1,0 +1,209 @@
+{
+  "schemaVersion": 1,
+  "modelVersion": "1.0.0-20260608-3d7b0678",
+  "modelFile": "model.onnx",
+  "classes": [
+    "ELEMENT_IGNIS",
+    "ELEMENT_AQUA",
+    "ELEMENT_TERRA",
+    "ELEMENT_VENTUS",
+    "ELEMENT_LUX",
+    "ELEMENT_UMBRA",
+    "ELEMENT_VITA",
+    "ELEMENT_MENS",
+    "DERIVED_GELU",
+    "DERIVED_FULMEN",
+    "DERIVED_SANGUIS",
+    "ACTION_EMIT",
+    "ACTION_CONTAIN",
+    "ACTION_RESTORE",
+    "ACTION_SEAL",
+    "ACTION_DISPEL",
+    "ACTION_COUNTER",
+    "FORM_PROJECTILE",
+    "FORM_BEAM",
+    "FORM_AURA",
+    "FORM_WAVE",
+    "FORM_CHAIN",
+    "FORM_RAIN",
+    "MODIFIER_SPIRAL",
+    "FORM_TRAP",
+    "TIME_TICK",
+    "DEFENSE_SHIELD",
+    "RISK_BACKFLOW",
+    "UNKNOWN"
+  ],
+  "catalogVersion": "2.2.0",
+  "classManifestSha256": "980ea07efa145d7e8f41b916858e7cf82ae28e3f6aa168d7a2301543ddb6aced",
+  "classBindings": {
+    "ELEMENT_IGNIS": {
+      "type": "sigil",
+      "sigilId": "IGNIS"
+    },
+    "ELEMENT_AQUA": {
+      "type": "sigil",
+      "sigilId": "AQUA"
+    },
+    "ELEMENT_TERRA": {
+      "type": "sigil",
+      "sigilId": "TERRA"
+    },
+    "ELEMENT_VENTUS": {
+      "type": "sigil",
+      "sigilId": "VENTUS"
+    },
+    "ELEMENT_LUX": {
+      "type": "sigil",
+      "sigilId": "LUX"
+    },
+    "ELEMENT_UMBRA": {
+      "type": "sigil",
+      "sigilId": "UMBRA"
+    },
+    "ELEMENT_VITA": {
+      "type": "sigil",
+      "sigilId": "VITA"
+    },
+    "ELEMENT_MENS": {
+      "type": "sigil",
+      "sigilId": "MENS"
+    },
+    "DERIVED_GELU": {
+      "type": "sigil",
+      "sigilId": "GELU"
+    },
+    "DERIVED_FULMEN": {
+      "type": "sigil",
+      "sigilId": "FULMEN"
+    },
+    "DERIVED_SANGUIS": {
+      "type": "sigil",
+      "sigilId": "SANGUIS"
+    },
+    "ACTION_EMIT": {
+      "type": "key",
+      "keyId": "PROJECTILE"
+    },
+    "ACTION_CONTAIN": {
+      "type": "key",
+      "keyId": "SHIELD"
+    },
+    "ACTION_RESTORE": {
+      "type": "key",
+      "keyId": "SUSTAIN"
+    },
+    "ACTION_SEAL": {
+      "type": "key",
+      "keyId": "TRAP"
+    },
+    "ACTION_DISPEL": {
+      "type": "key",
+      "keyId": "DISPEL"
+    },
+    "ACTION_COUNTER": {
+      "type": "key",
+      "keyId": "COUNTER"
+    },
+    "FORM_PROJECTILE": {
+      "type": "key",
+      "keyId": "PROJECTILE"
+    },
+    "FORM_BEAM": {
+      "type": "key",
+      "keyId": "PIERCE"
+    },
+    "FORM_AURA": {
+      "type": "key",
+      "keyId": "BUBBLE"
+    },
+    "FORM_WAVE": {
+      "type": "key",
+      "keyId": "DIFFUSE"
+    },
+    "FORM_CHAIN": {
+      "type": "key",
+      "keyId": "SUSTAIN"
+    },
+    "FORM_RAIN": {
+      "type": "key",
+      "keyId": "FIELD"
+    },
+    "MODIFIER_SPIRAL": {
+      "type": "key",
+      "keyId": "SPIRAL"
+    },
+    "FORM_TRAP": {
+      "type": "key",
+      "keyId": "TRAP"
+    },
+    "TIME_TICK": {
+      "type": "key",
+      "keyId": "TICK"
+    },
+    "DEFENSE_SHIELD": {
+      "type": "key",
+      "keyId": "SHIELD"
+    },
+    "RISK_BACKFLOW": {
+      "type": "key",
+      "keyId": "AMPLIFY"
+    }
+  },
+  "unknownClass": "UNKNOWN",
+  "input": {
+    "width": 128,
+    "height": 128,
+    "channels": 1,
+    "padding": 12,
+    "lineWidth": 5.0,
+    "mean": 0.15,
+    "std": 0.35
+  },
+  "temperature": 0.775932788848877,
+  "classThresholds": {
+    "ELEMENT_IGNIS": 0.8,
+    "ELEMENT_AQUA": 0.8,
+    "ELEMENT_TERRA": 0.8,
+    "ELEMENT_VENTUS": 0.8,
+    "ELEMENT_LUX": 0.8,
+    "ELEMENT_UMBRA": 0.8,
+    "ELEMENT_VITA": 0.8,
+    "ELEMENT_MENS": 0.8,
+    "DERIVED_GELU": 0.8,
+    "DERIVED_FULMEN": 0.7304,
+    "DERIVED_SANGUIS": 0.8,
+    "ACTION_EMIT": 0.8,
+    "ACTION_CONTAIN": 0.8,
+    "ACTION_RESTORE": 0.8,
+    "ACTION_SEAL": 0.8,
+    "ACTION_DISPEL": 0.8,
+    "ACTION_COUNTER": 0.8,
+    "FORM_PROJECTILE": 0.8,
+    "FORM_BEAM": 0.8,
+    "FORM_AURA": 0.8,
+    "FORM_WAVE": 0.8,
+    "FORM_CHAIN": 0.8,
+    "FORM_RAIN": 0.8,
+    "MODIFIER_SPIRAL": 0.8,
+    "FORM_TRAP": 0.7704,
+    "TIME_TICK": 0.8,
+    "DEFENSE_SHIELD": 0.8,
+    "RISK_BACKFLOW": 0.8,
+    "UNKNOWN": 0.5
+  },
+  "minimumSemanticMargin": 0.035,
+  "metrics": {
+    "top1Accuracy": 0.9837239583333334,
+    "top3Accuracy": 0.9967447916666666,
+    "unknownFalseAcceptRate": 0.015625
+  },
+  "sha256": "3d7b0678baafac45a79752e8abc5fd8f6e86ed224bd02f828ff89353ae767757",
+  "trainingSeed": 20260608,
+  "trainingProvenance": {
+    "datasetSchemaVersion": 2,
+    "generationSpecSha256": "264ea083306906c58eec2eb28c20fcd177e60d4fc4025e4b89c8b542c04568f2",
+    "trainSha256": "08df9b045ef3a3e37d34411a9d0239e24f2f67b83d62ff0337761311b93247f9",
+    "valSha256": "8de0a839e18ec521af17f3249bddcad13d1a03452ae3d8f1a6c82d5cb06026ab",
+    "testSha256": "aad7b7c5446d4d225d69306d681255d47303649d2c7677f016723f327cf411c0"
+  }
+}

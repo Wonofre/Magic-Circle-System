@@ -1,15 +1,11 @@
-import type { Entity, SigilType, SignType } from "@/types/magic";
+import type { Entity } from "@/types/magic";
 import type {
   InkCostBreakdown,
   InkInfusionState,
   InkReservoir,
   InkSimulationResult,
-  LegacyInkCostInput,
   SpellCardInkCostInput,
 } from "@/types/ink";
-
-const HIGH_RISK_SIGILS: readonly SigilType[] = ["fire", "thunder", "shadow", "void"];
-const HIGH_RISK_SIGNS: readonly SignType[] = ["crush", "explosion", "convergence", "chain"];
 
 export const DEFAULT_PLAYER_INK: InkReservoir = {
   ink: 24,
@@ -68,48 +64,25 @@ function getInfusionModifier(infusions: readonly InkInfusionState[] = []): numbe
   return infusions.reduce((total, infusion) => total + (infusion.costModifier ?? 0), 0);
 }
 
-function countHighRiskParts(sigils: readonly SigilType[], signs: readonly SignType[]): number {
-  return (
-    sigils.filter(sigil => HIGH_RISK_SIGILS.includes(sigil)).length +
-    signs.filter(sign => HIGH_RISK_SIGNS.includes(sign)).length
-  );
-}
-
-export function calculateLegacySpellInkCost(input: LegacyInkCostInput): InkCostBreakdown {
-  const uniqueSigils = new Set(input.sigils).size;
-  const uniqueSigns = new Set(input.signs).size;
-  const complexity = Math.max(0, uniqueSigils - 1) * 2 + uniqueSigns;
-  const precisionPenalty = input.precision >= 85 ? -1 : input.precision < 55 ? 2 : input.precision < 70 ? 1 : 0;
-  const risk = countHighRiskParts(input.sigils, input.signs);
-  const infusion = getInfusionModifier(input.infusions);
-  const base = 2;
-  const total = Math.max(1, Math.round(base + complexity + precisionPenalty + risk + infusion));
-
-  return {
-    base,
-    complexity,
-    stability: precisionPenalty,
-    risk,
-    infusion,
-    total,
-  };
-}
-
 export function calculateSpellCardInkCost(input: SpellCardInkCostInput): InkCostBreakdown {
+  const formula = input.card.formula;
   const stabilityPenalty = Math.max(0, Math.round((100 - input.card.stability) / 18));
-  const formulaRisk = input.card.formula.modifiers.some((rune) => rune.role === "risk") ? 2 : 0;
-  const instabilityRisk = input.card.formula.instability >= 70 ? 3 : input.card.formula.instability >= 40 ? 1 : 0;
-  const risk = Math.max(
-    formulaRisk + instabilityRisk,
-    input.card.recognitionOutcome === "backfire" ? 4 : input.card.recognitionOutcome === "cast_weak" ? 1 : 0,
-  );
+  const dormantPenalty = formula.keys.filter((key) => key.scope === "dormant").length;
+  const invalidChannelPenalty = formula.channels.filter((channel) => channel.geometry === "invalid_straight").length * 2;
+  const risk =
+    formula.validity === "invalid"
+      ? 4
+      : Math.max(
+          dormantPenalty + invalidChannelPenalty,
+          input.card.recognitionOutcome === "backfire" ? 4 : input.card.recognitionOutcome === "cast_weak" ? 1 : 0,
+        );
   const infusion = getInfusionModifier(input.infusions);
   const base = Math.max(1, input.card.inkCost);
   const total = Math.max(1, Math.round(base + stabilityPenalty + risk + infusion));
 
   return {
     base,
-    complexity: Math.max(0, Math.round(input.card.formula.complexity - 3)),
+    complexity: Math.max(0, formula.sigils.length + formula.keys.length + formula.channels.length - 2),
     stability: stabilityPenalty,
     risk,
     infusion,

@@ -1,4 +1,4 @@
-import type { SigilType, SignType } from "@/types/magic";
+import type { ElementSigilId } from "@/types/magicFormulaV2";
 import type { SpellCard } from "@/types/spellCard";
 
 export type InkRiskLevel = "low" | "medium" | "high";
@@ -11,7 +11,7 @@ export interface InkInfusionState {
   readonly costModifier?: number;
   readonly stabilityModifier?: number;
   readonly riskModifier?: number;
-  readonly affinity?: SigilType;
+  readonly affinity?: ElementSigilId;
 }
 
 export interface InkReservoir {
@@ -21,15 +21,8 @@ export interface InkReservoir {
   readonly inkPurity: number;
   readonly inkViscosity: number;
   readonly inkVolatility: number;
-  readonly inkAffinity: SigilType | null;
+  readonly inkAffinity: ElementSigilId | null;
   readonly activeInfusionIds: readonly string[];
-}
-
-export interface LegacyInkCostInput {
-  readonly sigils: readonly SigilType[];
-  readonly signs: readonly SignType[];
-  readonly precision: number;
-  readonly infusions?: readonly InkInfusionState[];
 }
 
 export interface SpellCardInkCostInput {

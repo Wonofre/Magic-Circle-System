@@ -21,8 +21,8 @@ Criar uma batalha local contra IA onde:
 4. O sistema normaliza os strokes para coordenadas 0..100.
 5. O sistema compara com templates.
 6. O sistema valida topologia e gramática.
-7. O sistema compila um SpellGraph.
-8. O SpellGraph vira uma SpellCard.
+7. O sistema compila uma `FormulaGraphV2`.
+8. A `FormulaGraphV2` vira uma SpellCard.
 9. A carta é resolvida no combate.
 10. A IA gera sua própria magia usando os mesmos templates.
 11. O desenho da IA é exibido junto com nome e efeitos.
@@ -45,7 +45,7 @@ DrawingStroke[]
 ```txt
 src/data/glyphTemplates.seed.json
 src/types/glyphTemplates.ts
-src/types/spellGraph.ts
+src/types/magicFormulaV2.ts
 src/types/spellCard.ts
 src/lib/recognizer/normalizeStrokes.ts
 src/lib/recognizer/resampleStrokes.ts
@@ -66,7 +66,7 @@ src/components/CodexPanel.tsx
 - Elemento: fogo, água, vento, terra, luz, sombra.
 - Ação: emitir, conter, cortar, mover, restaurar, selar.
 - Forma: projétil, barreira, onda, campo, armadilha.
-- Alvo: único, área, self, aliado, inimigo, terreno.
+- Destino: derivado automaticamente da forma e da categoria do efeito.
 - Risco: vazamento, rachadura, curto, ambiguidade.
 
 ## Tinta mágica
@@ -85,7 +85,7 @@ Campos sugeridos:
 ## Falhas esperadas
 
 - Fizzle: o desenho apaga sem efeito relevante.
-- Miscast: a magia sai parcial ou com alvo ruim.
+- Miscast: a magia sai parcial ou com forma desviada.
 - Leak: a tinta vaza e reduz eficiência.
 - Backfire: o circuito volta contra o conjurador.
 - Unknown: o desenho é recusado como rabisco ou ambíguo.
@@ -97,7 +97,7 @@ A IA deve usar o mesmo catálogo de glifos do jogador.
 Fluxo:
 
 ```txt
-intent -> recipe -> glyph templates -> noisy strokes -> SpellGraph -> visible cast
+intent -> recipe -> glyph templates -> noisy strokes -> FormulaGraphV2 -> visible cast
 ```
 
 Perfis iniciais:
@@ -105,14 +105,14 @@ Perfis iniciais:
 - apprentice: mais erro;
 - aggressive: prioriza ataque;
 - defensive: prioriza barreira;
-- control: prioriza status e alvo;
+- control: prioriza status e campo;
 - master: baixa instabilidade.
 
 ## Online futuro
 
 Preparar desde já:
 
-- SpellGraph serializável;
+- FormulaGraphV2 serializável;
 - SpellCard serializável;
 - spellHash determinístico;
 - motor de resolução puro, sem depender de React;
@@ -130,7 +130,7 @@ A arena virá depois do MVP. Ela deve usar os mesmos glifos para resolver desafi
 4. Template matcher.
 5. Topology gate.
 6. Painel debug.
-7. SpellGraph.
+7. FormulaGraphV2.
 8. Tinta mágica.
 9. IA desenhando.
 10. Grimório.

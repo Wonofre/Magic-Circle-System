@@ -1,6 +1,5 @@
-import type { SigilType, SignType } from "@/types/magic";
-import type { MandalaDocument } from "@/types/mandala";
-import type { SpellCardKind, SpellCardTarget } from "@/types/spellCard";
+import type { MagicFormulaV2 } from "@/types/magicFormulaV2";
+import type { SpellCardKind } from "@/types/spellCard";
 
 export type CodexMasteryState = "discovered" | "practiced" | "mastered";
 
@@ -8,16 +7,13 @@ export interface CodexSpellEntry {
   readonly spellHash: string;
   readonly name: string;
   readonly kind: SpellCardKind;
-  readonly target: SpellCardTarget;
   readonly codexTemplateIds?: readonly string[];
   readonly drawnTemplateIds?: readonly string[];
   readonly defaultedTemplateIds?: readonly string[];
   readonly componentTemplateIds: readonly string[];
   readonly formulaHash?: string;
-  readonly castHash?: string;
-  readonly mandala?: MandalaDocument;
-  readonly legacySigils?: readonly SigilType[];
-  readonly legacySigns?: readonly SignType[];
+  readonly visualHash?: string;
+  readonly formulaV2?: MagicFormulaV2;
   readonly effectSummary: string;
   readonly bestPrecision: number;
   readonly bestStability: number;
@@ -33,10 +29,6 @@ export interface GrimoireLoadout {
   readonly knownGlyphIds: readonly string[];
   readonly discoveredGlyphIds: readonly string[];
   readonly masteredGlyphIds: readonly string[];
-  /** @deprecated Legacy bridge only. New gameplay validates glyph template ids. */
-  readonly knownLegacySigils: readonly SigilType[];
-  /** @deprecated Legacy bridge only. New gameplay validates glyph template ids. */
-  readonly knownLegacySigns: readonly SignType[];
   readonly allowedRecipeIds: readonly string[];
   readonly allowedInkInfusionIds: readonly string[];
   readonly maxRiskLevel: "low" | "medium" | "high";

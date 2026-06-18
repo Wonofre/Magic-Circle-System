@@ -113,7 +113,6 @@ export const glyphCalibrationVariants: readonly GlyphCalibrationVariant[] = [
 const templateContext = (template: GlyphTemplate): TemplateMatcherContext => {
   if (template.semantic_role === "container") return { zone: "frame" };
   if (template.semantic_role === "source") return { zone: "core" };
-  if (template.semantic_role === "target") return { zone: "outer" };
   return { zone: "inner" };
 };
 

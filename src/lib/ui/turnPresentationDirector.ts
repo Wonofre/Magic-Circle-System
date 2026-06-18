@@ -7,33 +7,37 @@ export interface TurnPresentationTimings {
   readonly enemyTelegraphDelay: number;
   readonly enemyResultDelay: number;
   readonly defeatResultDelay: number;
+  readonly resultFeedbackDuration: number;
 }
 
-const defaultTurnPresentationTimings: TurnPresentationTimings = {
-  glyphReadDelay: motionDurations.medium,
-  playerCastImpactDelay: 980,
-  playerCastPhaseAdvanceDelay: 420,
-  enemyTelegraphDelay: 360,
-  enemyResultDelay: 880,
-  defeatResultDelay: 700,
+export const readableTurnPresentationTimings: TurnPresentationTimings = {
+  glyphReadDelay: 900,
+  playerCastImpactDelay: 1100,
+  playerCastPhaseAdvanceDelay: 3400,
+  enemyTelegraphDelay: 900,
+  enemyResultDelay: 4000,
+  defeatResultDelay: 2600,
+  resultFeedbackDuration: 4500,
 };
 
 const fastTurnPresentationTimings: TurnPresentationTimings = {
   glyphReadDelay: motionDurations.short,
   playerCastImpactDelay: motionDurations.castNormal,
-  playerCastPhaseAdvanceDelay: motionDurations.short,
+  playerCastPhaseAdvanceDelay: 900,
   enemyTelegraphDelay: motionDurations.short,
-  enemyResultDelay: motionDurations.castNormal,
-  defeatResultDelay: motionDurations.medium,
+  enemyResultDelay: 1200,
+  defeatResultDelay: 900,
+  resultFeedbackDuration: 1600,
 };
 
 const reducedMotionTurnPresentationTimings: TurnPresentationTimings = {
-  glyphReadDelay: motionDurations.micro,
-  playerCastImpactDelay: motionDurations.medium,
-  playerCastPhaseAdvanceDelay: motionDurations.micro,
-  enemyTelegraphDelay: motionDurations.micro,
-  enemyResultDelay: motionDurations.medium,
-  defeatResultDelay: motionDurations.medium,
+  glyphReadDelay: 700,
+  playerCastImpactDelay: 900,
+  playerCastPhaseAdvanceDelay: 3600,
+  enemyTelegraphDelay: 700,
+  enemyResultDelay: 4000,
+  defeatResultDelay: 2600,
+  resultFeedbackDuration: 4500,
 };
 
 const isFastCombatRequested = (): boolean => {
@@ -53,7 +57,7 @@ const isReducedMotionRequested = (): boolean => {
 export const getTurnPresentationTimings = (): TurnPresentationTimings => {
   if (isFastCombatRequested()) return fastTurnPresentationTimings;
   if (isReducedMotionRequested()) return reducedMotionTurnPresentationTimings;
-  return defaultTurnPresentationTimings;
+  return readableTurnPresentationTimings;
 };
 
 export const turnPresentationTimings = getTurnPresentationTimings();

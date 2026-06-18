@@ -1,0 +1,425 @@
+{
+  "version": "2.2.0",
+  "legacyPolicy": {
+    "runtimeLegacyAllowed": false,
+    "removeCompletely": [
+      "legacySigil",
+      "legacySigns",
+      "SigilType",
+      "SignType",
+      "activeRuneCatalog",
+      "legacyGlyphAdapter",
+      "legacy tab in GuidePanel",
+      "source as required glyph",
+      "connector as catalog glyph",
+      "seal as independent entity"
+    ]
+  },
+  "ontology": {
+    "coreOrder": [
+      "central_sigils",
+      "sigil_containment_circle",
+      "keys",
+      "key_scope_circles",
+      "circular_channels",
+      "casting_circle"
+    ],
+    "channelMeaning": "Canal e uma ligacao estrutural desenhada. Entre chaves, deve ser circular/orbital; entre chave e sigilo, deve preferir arco radial-curvo. Canal nao e glifo de catalogo.",
+    "symmetryMeaning": "Simetria nao substitui gramatica. Ela pontua beleza, estabilidade visual, rank e visual da carta."
+  },
+  "sigils": [
+    {
+      "id": "IGNIS",
+      "name": "Ignis",
+      "element": "fire",
+      "futureEffectHints": {
+        "damageTypes": [
+          "fire"
+        ],
+        "statuses": [
+          "burn"
+        ],
+        "fieldInteractions": [
+          "ignite_field"
+        ],
+        "visualMotifs": [
+          "flame",
+          "ember",
+          "heat_distortion"
+        ]
+      }
+    },
+    {
+      "id": "AQUA",
+      "name": "Aqua",
+      "element": "water",
+      "futureEffectHints": {
+        "damageTypes": [
+          "water"
+        ],
+        "statuses": [
+          "wet",
+          "drown_risk"
+        ],
+        "fields": [
+          "rain",
+          "underwater"
+        ],
+        "visualMotifs": [
+          "ripple",
+          "droplet",
+          "flood"
+        ]
+      }
+    },
+    {
+      "id": "TERRA",
+      "name": "Terra",
+      "element": "earth",
+      "futureEffectHints": {
+        "damageTypes": [
+          "impact",
+          "earth"
+        ],
+        "defense": [
+          "barrier",
+          "armor"
+        ],
+        "visualMotifs": [
+          "stone",
+          "crack",
+          "wall"
+        ]
+      }
+    },
+    {
+      "id": "VENTUS",
+      "name": "Ventus",
+      "element": "air",
+      "futureEffectHints": {
+        "damageTypes": [
+          "air_cut"
+        ],
+        "utility": [
+          "bubble_air",
+          "push",
+          "disperse"
+        ],
+        "visualMotifs": [
+          "swirl",
+          "gust",
+          "bubble"
+        ]
+      }
+    },
+    {
+      "id": "LUX",
+      "name": "Lux",
+      "element": "light",
+      "futureEffectHints": {
+        "damageTypes": [
+          "light"
+        ],
+        "statuses": [
+          "blind",
+          "reveal"
+        ],
+        "visualMotifs": [
+          "star",
+          "beam",
+          "glare"
+        ]
+      }
+    },
+    {
+      "id": "UMBRA",
+      "name": "Umbra",
+      "element": "shadow",
+      "futureEffectHints": {
+        "damageTypes": [
+          "shadow"
+        ],
+        "statuses": [
+          "obscure_grimoire",
+          "blind_dark"
+        ],
+        "visualMotifs": [
+          "smoke",
+          "void",
+          "eclipse"
+        ]
+      }
+    },
+    {
+      "id": "VITA",
+      "name": "Vita",
+      "element": "life",
+      "futureEffectHints": {
+        "support": [
+          "restore",
+          "regenerate"
+        ],
+        "statuses": [
+          "cleanse_minor"
+        ],
+        "visualMotifs": [
+          "leaf",
+          "pulse",
+          "green_glow"
+        ]
+      }
+    },
+    {
+      "id": "GELU",
+      "name": "Gelu",
+      "element": "ice",
+      "futureEffectHints": {
+        "damageTypes": [
+          "ice"
+        ],
+        "statuses": [
+          "slow",
+          "freeze"
+        ],
+        "visualMotifs": [
+          "snowflake",
+          "crystal"
+        ]
+      }
+    },
+    {
+      "id": "FULMEN",
+      "name": "Fulmen",
+      "element": "lightning",
+      "futureEffectHints": {
+        "damageTypes": [
+          "shock"
+        ],
+        "statuses": [
+          "stun"
+        ],
+        "visualMotifs": [
+          "zigzag",
+          "spark"
+        ]
+      }
+    },
+    {
+      "id": "SANGUIS",
+      "name": "Sanguis",
+      "element": "blood",
+      "futureEffectHints": {
+        "damageTypes": [
+          "bleed"
+        ],
+        "statuses": [
+          "bleeding_ticks"
+        ],
+        "visualMotifs": [
+          "drop",
+          "thread",
+          "pulse"
+        ]
+      }
+    },
+    {
+      "id": "MENS",
+      "name": "Mens",
+      "element": "mind",
+      "futureEffectHints": {
+        "statuses": [
+          "confusion",
+          "vision_distortion"
+        ],
+        "visualMotifs": [
+          "spiral_eye",
+          "ripple"
+        ]
+      }
+    }
+  ],
+  "keys": [
+    {
+      "id": "PROJECTILE",
+      "kind": "form",
+      "name": "Projetil",
+      "scopeRule": "global if uncontained; local if contained and channeled",
+      "futureEffectTags": [
+        "delivery_projectile"
+      ]
+    },
+    {
+      "id": "SPIRAL",
+      "kind": "modifier",
+      "name": "Espiral",
+      "requiresCircularChannelForCompound": true,
+      "futureEffectTags": [
+        "pierce_synergy",
+        "rotation",
+        "shield_pressure"
+      ]
+    },
+    {
+      "id": "PIERCE",
+      "kind": "modifier",
+      "name": "Perfurar",
+      "futureEffectTags": [
+        "shield_penetration",
+        "armor_break"
+      ]
+    },
+    {
+      "id": "FIELD",
+      "kind": "form",
+      "name": "Campo",
+      "futureEffectTags": [
+        "field_state",
+        "arena_modifier"
+      ]
+    },
+    {
+      "id": "TRAP",
+      "kind": "form",
+      "name": "Armadilha",
+      "futureEffectTags": [
+        "delayed_trigger",
+        "zone_trigger"
+      ]
+    },
+    {
+      "id": "BUBBLE",
+      "kind": "defense_form",
+      "name": "Bolha",
+      "futureEffectTags": [
+        "air_pocket",
+        "field_protection",
+        "self_scope"
+      ]
+    },
+    {
+      "id": "SHIELD",
+      "kind": "defense_form",
+      "name": "Escudo",
+      "futureEffectTags": [
+        "shield",
+        "block_projectile"
+      ]
+    },
+    {
+      "id": "SUSTAIN",
+      "kind": "modifier",
+      "name": "Sustentar",
+      "futureEffectTags": [
+        "duration",
+        "continuous"
+      ]
+    },
+    {
+      "id": "TICK",
+      "kind": "modifier",
+      "name": "Pulso",
+      "futureEffectTags": [
+        "periodic_ticks",
+        "damage_over_time"
+      ]
+    },
+    {
+      "id": "DISPEL",
+      "kind": "action",
+      "name": "Dissipar",
+      "futureEffectTags": [
+        "remove_field",
+        "remove_status",
+        "counter_magic"
+      ]
+    },
+    {
+      "id": "COUNTER",
+      "kind": "action",
+      "name": "Anular",
+      "futureEffectTags": [
+        "counterspell",
+        "cancel_cast"
+      ]
+    },
+    {
+      "id": "AMPLIFY",
+      "kind": "modifier",
+      "name": "Amplificar",
+      "futureEffectTags": [
+        "potency_up",
+        "cost_up"
+      ]
+    },
+    {
+      "id": "DIFFUSE",
+      "kind": "modifier",
+      "name": "Difundir",
+      "futureEffectTags": [
+        "area_spread",
+        "precision_down"
+      ]
+    }
+  ],
+  "circleRules": {
+    "castingCircle": {
+      "required": true,
+      "mustBeOutermost": true,
+      "rejectIfCrossedByInternalStroke": true,
+      "minClosure": 0.92,
+      "minRoundness": 0.72,
+      "weightInQuality": 0.3
+    },
+    "sigilContainment": {
+      "required": false,
+      "minClosure": 0.7,
+      "weightInQuality": 0.12
+    },
+    "keyScopeCircle": {
+      "required": false,
+      "closedMeans": "local_scope",
+      "missingMeans": "global_scope",
+      "openMeans": "unstable_scope",
+      "minClosure": 0.7,
+      "weightInQuality": 0.1
+    }
+  },
+  "channelRules": {
+    "keyToKey": {
+      "requiredGeometry": "circular_arc_or_orbital_arc",
+      "minCurvature": 0.18,
+      "symmetryBonus": true,
+      "straightLinePenalty": 0.35
+    },
+    "keyToSigil": {
+      "requiredGeometry": "straight_or_curved_radial",
+      "straightLineAllowed": true,
+      "straightLinePenalty": 0
+    },
+    "outerCircleCrossing": "invalid_or_leak_failure",
+    "endpointSnapRadiusRatio": 0.1
+  },
+  "symmetryScoring": {
+    "enabled": true,
+    "doesNotOverrideValidity": true,
+    "components": {
+      "radialBalance": 0.22,
+      "keyAngularSpacing": 0.18,
+      "circleConcentricity": 0.18,
+      "channelArcRegularity": 0.18,
+      "mirrorBalance": 0.12,
+      "strokeCleanliness": 0.12
+    },
+    "usageNow": [
+      "spell_visual_rank",
+      "name_epithet",
+      "card_frame_quality",
+      "debug_feedback"
+    ],
+    "usageFuture": [
+      "stability_modifier",
+      "mana_efficiency",
+      "miscast_risk"
+    ]
+  }
+}

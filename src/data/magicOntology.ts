@@ -1,14 +1,45 @@
-import type { GlyphSemanticRole } from "@/types/glyphTemplates";
-import type { SigilType, SignType } from "@/types/magic";
-import type { SpellCardKind } from "@/types/spellCard";
+import { z } from "zod";
 
-export type MagicRuneZone = "frame" | "core" | "inner" | "middle" | "outer" | "orbital";
+import { getGlyphById } from "@/data/glyphTemplates";
+import {
+  ELEMENT_SIGIL_IDS,
+  getCatalogKey,
+  getCatalogSigil,
+  MAGIC_KEY_IDS,
+  magicCatalogV2,
+} from "@/data/magicCatalogV2";
+import rawRuneManifest from "@/data/magicRunesV2.seed.json";
+import type { GlyphSemanticRole } from "@/types/glyphTemplates";
+import type { ElementSigilId, MagicKeyId, MagicKeyKind } from "@/types/magicFormulaV2";
+
+export const MAGIC_RUNE_ZONES = [
+  "frame",
+  "core",
+  "inner",
+  "middle",
+  "outer",
+  "orbital",
+] as const;
+
+export type MagicRuneZone = (typeof MAGIC_RUNE_ZONES)[number];
+
+export type MagicRuneV2Binding =
+  | {
+      readonly type: "casting_circle";
+    }
+  | {
+      readonly type: "sigil";
+      readonly sigilId: ElementSigilId;
+    }
+  | {
+      readonly type: "key";
+      readonly keyId: MagicKeyId;
+      readonly keyKind: MagicKeyKind;
+    };
 
 export interface MagicRuneDefinition {
   readonly id: string;
   readonly templateId: string;
-  readonly legacySigil?: SigilType;
-  readonly legacySigns?: readonly SignType[];
   readonly name: string;
   readonly role: GlyphSemanticRole;
   readonly active: boolean;
@@ -18,322 +49,143 @@ export interface MagicRuneDefinition {
   readonly canBeDefaulted: boolean;
   readonly codexDiscoverable: boolean;
   readonly expectedZones: readonly MagicRuneZone[];
-  readonly gameplay?: {
-    readonly element?: SigilType;
-    readonly kind?: SpellCardKind;
-    readonly basePower?: number;
-    readonly status?: string;
-  };
+  readonly binding: MagicRuneV2Binding;
 }
 
-const commonRune = {
-  active: true,
-  playerDrawable: true,
-  enemyDrawable: true,
-  codexDiscoverable: true,
-  canBeDefaulted: false,
-} as const;
+const runeFlagsSchema = z.object({
+  active: z.boolean(),
+  playerDrawable: z.boolean(),
+  enemyDrawable: z.boolean(),
+  knownByDefault: z.boolean(),
+  canBeDefaulted: z.boolean(),
+  codexDiscoverable: z.boolean(),
+}).strict();
 
-export const magicRunes: readonly MagicRuneDefinition[] = [
-  {
-    ...commonRune,
-    id: "FRAME_CIRCLE_CONTAINMENT",
-    templateId: "FRAME_CIRCLE_CONTAINMENT",
-    name: "Circulo de Contencao",
-    role: "container",
-    knownByDefault: true,
-    expectedZones: ["frame"],
-  },
-  {
-    ...commonRune,
-    id: "FRAME_DOUBLE_SEAL",
-    templateId: "FRAME_DOUBLE_SEAL",
-    name: "Duplo Circulo de Selamento",
-    role: "container",
-    knownByDefault: false,
-    expectedZones: ["frame"],
-  },
-  {
-    ...commonRune,
-    id: "SOURCE_DOT",
-    templateId: "SOURCE_DOT",
-    name: "Ponto de Fonte",
-    role: "source",
-    knownByDefault: true,
-    canBeDefaulted: true,
-    expectedZones: ["core"],
-  },
-  {
-    ...commonRune,
-    id: "SOURCE_DOUBLE",
-    templateId: "SOURCE_DOUBLE",
-    name: "Nascente Dupla",
-    role: "source",
-    knownByDefault: false,
-    expectedZones: ["core"],
-  },
-  {
-    ...commonRune,
-    id: "ELEMENT_IGNIS",
-    templateId: "ELEMENT_IGNIS",
-    legacySigil: "fire",
-    name: "Ignis",
-    role: "element",
-    knownByDefault: true,
-    expectedZones: ["core", "inner"],
-    gameplay: { element: "fire", kind: "attack", basePower: 20, status: "burn" },
-  },
-  {
-    ...commonRune,
-    id: "ELEMENT_AQUA",
-    templateId: "ELEMENT_AQUA",
-    legacySigil: "water",
-    name: "Aqua",
-    role: "element",
-    knownByDefault: true,
-    expectedZones: ["core", "inner"],
-    gameplay: { element: "water", kind: "control", basePower: 16, status: "wet" },
-  },
-  {
-    ...commonRune,
-    id: "ELEMENT_TERRA",
-    templateId: "ELEMENT_TERRA",
-    legacySigil: "earth",
-    name: "Terra",
-    role: "element",
-    knownByDefault: true,
-    expectedZones: ["core", "inner"],
-    gameplay: { element: "earth", kind: "defense", basePower: 18 },
-  },
-  {
-    ...commonRune,
-    id: "ELEMENT_VENTUS",
-    templateId: "ELEMENT_VENTUS",
-    legacySigil: "wind",
-    name: "Ventus",
-    role: "element",
-    knownByDefault: true,
-    expectedZones: ["core", "inner"],
-    gameplay: { element: "wind", kind: "utility", basePower: 15 },
-  },
-  {
-    ...commonRune,
-    id: "ELEMENT_LUX",
-    templateId: "ELEMENT_LUX",
-    legacySigil: "light",
-    name: "Lux",
-    role: "element",
-    knownByDefault: true,
-    expectedZones: ["core", "inner"],
-    gameplay: { element: "light", kind: "attack", basePower: 18 },
-  },
-  {
-    ...commonRune,
-    id: "ELEMENT_UMBRA",
-    templateId: "ELEMENT_UMBRA",
-    legacySigil: "shadow",
-    name: "Umbra",
-    role: "element",
-    knownByDefault: true,
-    expectedZones: ["core", "inner"],
-    gameplay: { element: "shadow", kind: "control", basePower: 18, status: "cursed" },
-  },
-  {
-    ...commonRune,
-    id: "ELEMENT_VITA",
-    templateId: "ELEMENT_VITA",
-    legacySigil: "nature",
-    name: "Vita",
-    role: "element",
-    knownByDefault: true,
-    expectedZones: ["core", "inner"],
-    gameplay: { element: "nature", kind: "support", basePower: 16, status: "rooted" },
-  },
-  {
-    ...commonRune,
-    id: "ELEMENT_MENS",
-    templateId: "ELEMENT_MENS",
-    name: "Mens",
-    role: "element",
-    knownByDefault: true,
-    expectedZones: ["core", "inner"],
-    gameplay: { kind: "control", basePower: 16 },
-  },
-  {
-    ...commonRune,
-    id: "DERIVED_GELU",
-    templateId: "DERIVED_GELU",
-    legacySigil: "ice",
-    name: "Gelu",
-    role: "derived",
-    knownByDefault: true,
-    expectedZones: ["inner", "middle"],
-    gameplay: { element: "ice", kind: "control", basePower: 18, status: "frozen" },
-  },
-  {
-    ...commonRune,
-    id: "DERIVED_FULMEN",
-    templateId: "DERIVED_FULMEN",
-    legacySigil: "thunder",
-    name: "Fulmen",
-    role: "derived",
-    knownByDefault: true,
-    expectedZones: ["inner", "middle"],
-    gameplay: { element: "thunder", kind: "attack", basePower: 22, status: "stun" },
-  },
-  {
-    ...commonRune,
-    id: "ACTION_EMIT",
-    templateId: "ACTION_EMIT",
-    legacySigns: ["column", "rain", "dispersion", "weave", "crush", "explosion", "levitation", "direction", "bolt", "enlarge", "bird", "spiral"],
-    name: "Emitir",
-    role: "action",
-    knownByDefault: true,
-    canBeDefaulted: true,
-    expectedZones: ["middle", "outer"],
-  },
-  {
-    ...commonRune,
-    id: "ACTION_CONTAIN",
-    templateId: "ACTION_CONTAIN",
-    legacySigns: ["shield_sign", "float", "billowing", "reflect", "anchor"],
-    name: "Conter",
-    role: "action",
-    knownByDefault: true,
-    expectedZones: ["middle", "outer"],
-  },
-  {
-    ...commonRune,
-    id: "ACTION_RESTORE",
-    templateId: "ACTION_RESTORE",
-    legacySigns: ["heal_sign"],
-    name: "Restaurar",
-    role: "action",
-    knownByDefault: true,
-    expectedZones: ["middle", "outer"],
-  },
-  {
-    ...commonRune,
-    id: "ACTION_SEAL",
-    templateId: "ACTION_SEAL",
-    legacySigns: ["chain", "pull", "convergence", "collection"],
-    name: "Selar",
-    role: "action",
-    knownByDefault: true,
-    expectedZones: ["middle", "outer"],
-  },
-  {
-    ...commonRune,
-    id: "FORM_PROJECTILE",
-    templateId: "FORM_PROJECTILE",
-    legacySigns: ["levitation", "direction", "bolt", "enlarge", "bird", "spiral", "crush", "explosion"],
-    name: "Projetil",
-    role: "form",
-    knownByDefault: true,
-    canBeDefaulted: true,
-    expectedZones: ["middle", "outer"],
-  },
-  {
-    ...commonRune,
-    id: "FORM_BEAM",
-    templateId: "FORM_BEAM",
-    legacySigns: ["column"],
-    name: "Raio",
-    role: "form",
-    knownByDefault: true,
-    expectedZones: ["middle", "outer"],
-  },
-  {
-    ...commonRune,
-    id: "FORM_AURA",
-    templateId: "FORM_AURA",
-    legacySigns: ["heal_sign"],
-    name: "Aura",
-    role: "form",
-    knownByDefault: true,
-    expectedZones: ["middle", "outer"],
-  },
-  {
-    ...commonRune,
-    id: "FORM_WAVE",
-    templateId: "FORM_WAVE",
-    legacySigns: ["dispersion", "weave"],
-    name: "Onda",
-    role: "form",
-    knownByDefault: true,
-    expectedZones: ["middle", "outer"],
-  },
-  {
-    ...commonRune,
-    id: "FORM_CHAIN",
-    templateId: "FORM_CHAIN",
-    legacySigns: ["chain", "pull", "convergence", "collection"],
-    name: "Corrente",
-    role: "form",
-    knownByDefault: true,
-    expectedZones: ["middle", "outer"],
-  },
-  {
-    ...commonRune,
-    id: "FORM_RAIN",
-    templateId: "FORM_RAIN",
-    legacySigns: ["rain"],
-    name: "Chuva",
-    role: "form",
-    knownByDefault: true,
-    expectedZones: ["middle", "outer"],
-  },
-  {
-    ...commonRune,
-    id: "DEFENSE_SHIELD",
-    templateId: "DEFENSE_SHIELD",
-    legacySigns: ["shield_sign", "float", "billowing", "reflect", "anchor"],
-    name: "Escudo",
-    role: "defense",
-    knownByDefault: true,
-    expectedZones: ["middle", "outer"],
-    gameplay: { kind: "defense", basePower: 16 },
-  },
-  {
-    ...commonRune,
-    id: "TARGET_ENEMY",
-    templateId: "TARGET_ENEMY",
-    legacySigns: ["column", "rain", "dispersion", "weave", "crush", "explosion", "levitation", "direction", "bolt", "enlarge", "bird", "spiral", "chain", "pull", "convergence", "collection"],
-    name: "Inimigo",
-    role: "target",
-    knownByDefault: true,
-    canBeDefaulted: true,
-    expectedZones: ["outer", "orbital"],
-  },
-  {
-    ...commonRune,
-    id: "TARGET_SELF",
-    templateId: "TARGET_SELF",
-    legacySigns: ["heal_sign", "shield_sign", "float", "billowing", "reflect", "anchor"],
-    name: "Autoalvo",
-    role: "target",
-    knownByDefault: true,
-    expectedZones: ["outer", "orbital"],
-  },
-  {
-    ...commonRune,
-    id: "RISK_BACKFLOW",
-    templateId: "RISK_BACKFLOW",
-    legacySigns: ["crush", "explosion"],
-    name: "Retorno de Fluxo",
-    role: "risk",
-    knownByDefault: false,
-    expectedZones: ["outer", "orbital"],
-    gameplay: { kind: "attack", status: "backflow" },
-  },
-] as const;
+const runeBindingSeedSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("casting_circle") }).strict(),
+  z.object({
+    type: z.literal("sigil"),
+    sigilId: z.enum(ELEMENT_SIGIL_IDS),
+  }).strict(),
+  z.object({
+    type: z.literal("key"),
+    keyId: z.enum(MAGIC_KEY_IDS),
+  }).strict(),
+]);
+
+const runeSeedSchema = z.object({
+  templateId: z.string().min(1),
+  binding: runeBindingSeedSchema,
+  expectedZones: z.array(z.enum(MAGIC_RUNE_ZONES)).min(1),
+  active: z.boolean().optional(),
+  playerDrawable: z.boolean().optional(),
+  enemyDrawable: z.boolean().optional(),
+  knownByDefault: z.boolean().optional(),
+  canBeDefaulted: z.boolean().optional(),
+  codexDiscoverable: z.boolean().optional(),
+}).strict();
+
+const runeManifestSchema = z.object({
+  schemaVersion: z.literal(1),
+  catalogVersion: z.string().min(1),
+  defaults: runeFlagsSchema,
+  unknownNegativeTemplateIds: z.array(z.string().min(1)),
+  runes: z.array(runeSeedSchema).min(1),
+}).strict().superRefine((manifest, context) => {
+  const seenTemplateIds = new Set<string>();
+  manifest.runes.forEach((rune, index) => {
+    if (seenTemplateIds.has(rune.templateId)) {
+      context.addIssue({
+        code: "custom",
+        message: `duplicate rune template "${rune.templateId}"`,
+        path: ["runes", index, "templateId"],
+      });
+    }
+    seenTemplateIds.add(rune.templateId);
+  });
+
+  const seenNegativeIds = new Set<string>();
+  manifest.unknownNegativeTemplateIds.forEach((templateId, index) => {
+    if (seenNegativeIds.has(templateId)) {
+      context.addIssue({
+        code: "custom",
+        message: `duplicate UNKNOWN negative template "${templateId}"`,
+        path: ["unknownNegativeTemplateIds", index],
+      });
+    }
+    seenNegativeIds.add(templateId);
+  });
+});
+
+const manifestResult = runeManifestSchema.safeParse(rawRuneManifest);
+if (!manifestResult.success) {
+  throw new Error(`Invalid magic rune manifest: ${z.prettifyError(manifestResult.error)}`);
+}
+
+export const magicRuneManifest = manifestResult.data;
+export const magicRuneCatalogVersion = magicRuneManifest.catalogVersion;
+export const unknownNegativeTemplateIds = magicRuneManifest.unknownNegativeTemplateIds;
+
+if (magicRuneCatalogVersion !== magicCatalogV2.version) {
+  throw new Error(
+    `Rune manifest catalog version ${magicRuneCatalogVersion} does not match magic catalog ${magicCatalogV2.version}.`,
+  );
+}
+
+const sigilRoles = new Set<GlyphSemanticRole>(["element", "derived"]);
+const keyRoles = new Set<GlyphSemanticRole>(["action", "form", "defense", "time", "risk"]);
+
+const buildRuneDefinition = (
+  seed: (typeof magicRuneManifest.runes)[number],
+): MagicRuneDefinition => {
+  const glyph = getGlyphById(seed.templateId);
+  if (!glyph) {
+    throw new Error(`Rune manifest references missing glyph template "${seed.templateId}".`);
+  }
+
+  let binding: MagicRuneV2Binding;
+  if (seed.binding.type === "casting_circle") {
+    if (glyph.semantic_role !== "container") {
+      throw new Error(`Casting circle "${seed.templateId}" must use a container template.`);
+    }
+    binding = seed.binding;
+  } else if (seed.binding.type === "sigil") {
+    getCatalogSigil(seed.binding.sigilId);
+    if (!sigilRoles.has(glyph.semantic_role)) {
+      throw new Error(`Sigil "${seed.templateId}" must use an element or derived template.`);
+    }
+    binding = seed.binding;
+  } else {
+    const key = getCatalogKey(seed.binding.keyId);
+    if (!keyRoles.has(glyph.semantic_role)) {
+      throw new Error(`Key "${seed.templateId}" uses unsupported role "${glyph.semantic_role}".`);
+    }
+    binding = {
+      ...seed.binding,
+      keyKind: key.kind,
+    };
+  }
+
+  return {
+    ...magicRuneManifest.defaults,
+    ...seed,
+    id: seed.templateId,
+    name: glyph.display_name,
+    role: glyph.semantic_role,
+    binding,
+  };
+};
+
+export const magicRunes: readonly MagicRuneDefinition[] =
+  magicRuneManifest.runes.map(buildRuneDefinition);
+
+for (const templateId of unknownNegativeTemplateIds) {
+  if (!getGlyphById(templateId)) {
+    throw new Error(`UNKNOWN negative references missing glyph template "${templateId}".`);
+  }
+}
 
 const runesByTemplateId = new Map(magicRunes.map((rune) => [rune.templateId, rune]));
-const runesByLegacySigil = new Map(
-  magicRunes
-    .filter((rune): rune is MagicRuneDefinition & { readonly legacySigil: SigilType } => Boolean(rune.legacySigil))
-    .map((rune) => [rune.legacySigil, rune]),
-);
 
 export const activeRuneDefinitions = magicRunes.filter((rune) => rune.active);
 
@@ -343,17 +195,25 @@ export const enemyDrawableRuneDefinitions = activeRuneDefinitions.filter((rune) 
 
 export const knownByDefaultRuneDefinitions = activeRuneDefinitions.filter((rune) => rune.knownByDefault);
 
+export const activeRuneTemplateIds = activeRuneDefinitions.map((rune) => rune.templateId);
+
+export const defaultKnownRuneTemplateIds = knownByDefaultRuneDefinitions.map((rune) => rune.templateId);
+
 export const getRuneByTemplateId = (templateId: string): MagicRuneDefinition | undefined =>
   runesByTemplateId.get(templateId);
 
-export const getRuneByLegacySigil = (sigil: SigilType): MagicRuneDefinition | undefined =>
-  runesByLegacySigil.get(sigil);
+export const getV2BindingForTemplateId = (templateId: string): MagicRuneV2Binding | undefined =>
+  getRuneByTemplateId(templateId)?.binding;
 
-export const getTemplateIdForLegacySigil = (sigil: SigilType): string | undefined =>
-  getRuneByLegacySigil(sigil)?.templateId;
+export const getElementSigilForTemplateId = (templateId: string): ElementSigilId | undefined => {
+  const binding = getV2BindingForTemplateId(templateId);
+  return binding?.type === "sigil" ? binding.sigilId : undefined;
+};
 
-export const getLegacySigilForTemplateId = (templateId: string): SigilType | undefined =>
-  getRuneByTemplateId(templateId)?.legacySigil;
+export const getMagicKeyForTemplateId = (templateId: string): MagicKeyId | undefined => {
+  const binding = getV2BindingForTemplateId(templateId);
+  return binding?.type === "key" ? binding.keyId : undefined;
+};
 
 export const getDefaultableTemplateIds = (): readonly string[] =>
   activeRuneDefinitions
@@ -370,8 +230,3 @@ export const getCodexDiscoverableTemplateIds = (): readonly string[] =>
 
 export const getKnownByDefaultTemplateIds = (): readonly string[] =>
   knownByDefaultRuneDefinitions.map((rune) => rune.templateId);
-
-export const getTemplateIdsForLegacySign = (sign: SignType): readonly string[] =>
-  activeRuneDefinitions
-    .filter((rune) => rune.legacySigns?.includes(sign))
-    .map((rune) => rune.templateId);

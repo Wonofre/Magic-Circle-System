@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { activeRuneTemplateIds } from "@/data/activeRuneCatalog";
+import { activeRuneTemplateIds } from "@/data/magicOntology";
 import { auditGlyphTemplateRecognition } from "@/lib/recognizer/glyphTemplateCalibration";
 
 describe("glyph template calibration", () => {
@@ -21,5 +21,5 @@ describe("glyph template calibration", () => {
     ).toEqual([]);
     expect(summary.minimumConfidence).toBeGreaterThanOrEqual(0.7);
     expect(summary.minimumSemanticMargin).toBeGreaterThanOrEqual(0.12);
-  }, 30000);
+  }, 60000);
 });

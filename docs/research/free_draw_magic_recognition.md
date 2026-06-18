@@ -159,7 +159,6 @@ Falhas devem ser diegéticas:
 | topologia incompatível | falha estrutural |
 | ambiguidade alta | miscast |
 | excesso de tinta | backfire |
-| alvo ausente | erro de alvo |
 | conexão errada | efeito parcial |
 
 ---
@@ -195,6 +194,6 @@ Começar com:
 4. template matching;
 5. topology gate;
 6. debug panel;
-7. SpellGraph simples.
+7. FormulaGraphV2 simples.
 
 ML/Vision entra só depois, como camada auxiliar.
