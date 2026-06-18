@@ -6,7 +6,9 @@ import { defaultGrimoireLoadout, recordSpellCardDiscovery, validateSpellCardForL
 import { calculateFinalCastPrecision, resolveSpellCardCast } from "@/lib/spell/combatResolver";
 import { chooseEnemySpellPlan } from "@/lib/spell/enemySpellAI";
 import { calculateSpellCardInkCost, simulateInkSpend } from "@/lib/spell/inkSimulator";
-import { compileSpellFromStrokesSync } from "@/lib/spell/spellCompiler";
+import { compileSpellFromStrokes, compileSpellFromStrokesSync } from "@/lib/spell/spellCompiler";
+import { getAllowedGlyphIds } from "@/lib/spell/codexStore";
+import type { RecognitionContext } from "@/lib/recognizerV2/recognitionContext";
 
 import { detectChannelsV2 } from "@/lib/recognizerV2/channelDetectorV2";
 import { analyzeCastingCircleGesture } from "@/lib/recognizerV2/canvasFeedbackV2";
@@ -81,6 +83,38 @@ const compileCard = (templateIds: readonly string[] = [
   const result = compileSpellFromStrokesSync(formulaStrokes(templateIds));
   if (!result.ok) throw new Error(result.failure.message);
   return result.card;
+};
+
+const tutorialTopologyStrokes = (): readonly RecognitionStroke[] => {
+  const canonical = formulaStrokes([
+    "FRAME_CIRCLE_CONTAINMENT",
+    "ELEMENT_AQUA",
+    "FORM_PROJECTILE",
+  ]);
+  return [
+    ...canonical.filter((stroke) => stroke.id?.startsWith("ELEMENT_AQUA")),
+    {
+      id: "tutorial-containment",
+      points: makeCircle(260, 260, 52),
+    },
+    ...canonical.filter((stroke) => stroke.id?.startsWith("FORM_PROJECTILE")),
+    {
+      id: "tutorial-key-scope",
+      points: makeCircle(360, 260, 42),
+    },
+    {
+      id: "tutorial-channel",
+      points: [
+        { x: 312, y: 260 },
+        { x: 336, y: 260 },
+        { x: 360, y: 260 },
+      ],
+    },
+    {
+      id: "tutorial-casting-circle",
+      points: makeCircle(260, 260, 160),
+    },
+  ];
 };
 
 const makeEntity = (element: ElementSigilId | null, overrides: Partial<Entity> = {}): Entity => ({
@@ -446,36 +480,7 @@ describe("MagicFormulaV2 gameplay integration", () => {
   }, 10000);
 
   it("compiles the traced tutorial topology through the containment circle", () => {
-    const canonical = formulaStrokes([
-      "FRAME_CIRCLE_CONTAINMENT",
-      "ELEMENT_AQUA",
-      "FORM_PROJECTILE",
-    ]);
-    const tutorialStrokes: RecognitionStroke[] = [
-      ...canonical.filter((stroke) => stroke.id?.startsWith("ELEMENT_AQUA")),
-      {
-        id: "tutorial-containment",
-        points: makeCircle(260, 260, 52),
-      },
-      ...canonical.filter((stroke) => stroke.id?.startsWith("FORM_PROJECTILE")),
-      {
-        id: "tutorial-key-scope",
-        points: makeCircle(360, 260, 42),
-      },
-      {
-        id: "tutorial-channel",
-        points: [
-          { x: 312, y: 260 },
-          { x: 336, y: 260 },
-          { x: 360, y: 260 },
-        ],
-      },
-      {
-        id: "tutorial-casting-circle",
-        points: makeCircle(260, 260, 160),
-      },
-    ];
-    const result = compileSpellFromStrokesSync(tutorialStrokes);
+    const result = compileSpellFromStrokesSync(tutorialTopologyStrokes());
 
     expect(
       result.ok,
@@ -494,6 +499,68 @@ describe("MagicFormulaV2 gameplay integration", () => {
       expect(result.card.formula.validity).toBe("valid_visual_formula");
     }
   }, 20000);
+
+  it("compiles tutorial topology through fused async recognition with gameplay context", async () => {
+    const strokes = tutorialTopologyStrokes();
+    const recognitionContext: RecognitionContext = {
+      allowedTemplateIds: getAllowedGlyphIds(defaultGrimoireLoadout, []),
+      enemyWeakness: "UMBRA",
+    };
+    const result = await compileSpellFromStrokes(strokes, { recognitionContext });
+
+    expect(
+      result.ok,
+      result.ok
+        ? "compiled"
+        : `${result.failure.message}:${result.failure.formulaIssues?.map((issue) => issue.code).join(",")}`,
+    ).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.card.formula.version).toBe(2);
+    expect(result.card.formula.validity).toBe("valid_visual_formula");
+    expect(result.card.formula.sigils[0]?.sigilId).toBe("AQUA");
+    expect(result.card.formula.sigilContainment?.strokeIds).toContain("tutorial-containment");
+    expect(result.card.formula.channels).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        kind: "key_to_containment",
+        geometry: "straight_radial",
+      }),
+    ]));
+    expect(result.card.drawnTemplateIds).toContain("ELEMENT_AQUA");
+    expect(result.semanticResults?.length).toBeGreaterThan(0);
+    if (result.telemetry?.model) {
+      expect(["ready", "unavailable"]).toContain(result.telemetry.model.status);
+    }
+  }, 30000);
+
+  it("resolves player combat from async fused SpellCard", async () => {
+    const compiled = await compileSpellFromStrokes(tutorialTopologyStrokes(), {
+      recognitionContext: {
+        allowedTemplateIds: getAllowedGlyphIds(defaultGrimoireLoadout, []),
+        enemyWeakness: "UMBRA",
+      },
+    });
+
+    expect(compiled.ok).toBe(true);
+    if (!compiled.ok) return;
+
+    const enemy = makeEntity("UMBRA", { id: "enemy-umbra", weakness: "LUX" });
+    const precision = calculateFinalCastPrecision(compiled.card);
+    const cast = resolveSpellCardCast({
+      card: compiled.card,
+      precision,
+      opponent: enemy,
+      inkCost: calculateSpellCardInkCost({ card: compiled.card }).total,
+    });
+
+    expect(cast.formula?.version).toBe(2);
+    expect(cast.spellCard.id).toBe(compiled.card.id);
+    expect(cast.inkCostBreakdown.total).toBeGreaterThan(0);
+    expect(
+      cast.damage + cast.healing + cast.shield + cast.statusEffects.length + (cast.fieldEffect ? 1 : 0),
+    ).toBeGreaterThan(0);
+    expect(compiled.card.effectProfile.form).toBe("PROJECTILE");
+  }, 30000);
 
   it("recovers a curved key channel even when the stroke was consumed by component grouping", () => {
     const castingCircle = {
