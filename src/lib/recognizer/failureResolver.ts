@@ -274,6 +274,22 @@ const getPrimaryTechnicalCause = (
   return "The drawing did not satisfy the deterministic recognition grammar.";
 };
 
+const semanticAmbiguityFeedback = (input: FailureResolverInput): string | null => {
+  const candidate = input.match?.topCandidate?.template ?? input.semantic?.candidate?.template;
+  if (!candidate) return null;
+
+  const label = candidate.display_name ?? candidate.id;
+  switch (candidate.semantic_role) {
+    case "element":
+      return `O sigilo ${label} ficou ambiguo. Reforce curvas e contornos antes de conjurar.`;
+    case "form":
+    case "action":
+      return `A chave ${label} pareceu outro simbolo. Reforce pontas e angulos da forma.`;
+    default:
+      return `O simbolo ${label} ficou parecido com outro. Compare com o Guia e redesenhe o contorno.`;
+  }
+};
+
 const formulaIssueFeedback = (issue: FormulaIssueV2 | undefined): string | null => {
   switch (issue?.code) {
     case "missing_casting_circle":
@@ -308,7 +324,9 @@ const getMessages = (
     case "miscast":
       return {
         message: "A intencao ficou ambigua e a magia desviou de forma.",
-        playerFeedback: "Um simbolo ficou parecido com outro. Reforce suas pontas, curvas e marcas internas antes de conjurar novamente.",
+        playerFeedback:
+          semanticAmbiguityFeedback(input)
+          ?? "Um simbolo ficou parecido com outro. Reforce suas pontas, curvas e marcas internas antes de conjurar novamente.",
       };
     case "leak":
       return {

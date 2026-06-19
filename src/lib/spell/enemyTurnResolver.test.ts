@@ -67,6 +67,24 @@ describe("enemyTurnResolver", () => {
     expect(second.player.hp).toBe(first.player.hp);
   });
 
+  it("skips hostile action during the first-round grace period", () => {
+    const enemy = generateEnemy(1);
+    const player = makePlayer();
+    const resolution = resolveEnemyTurn({
+      enemy,
+      player,
+      battlefieldEffects: [],
+      turn: 1,
+      gracePeriodActive: true,
+    });
+
+    expect(resolution.outcome).toBe("skip");
+    expect(resolution.playerHpDamage).toBe(0);
+    expect(resolution.player.hp).toBe(player.hp);
+    expect(resolution.logs.some((line) => line.includes(enemy.name))).toBe(true);
+    expect(resolution.logs.some((line) => line.includes("causou"))).toBe(false);
+  });
+
   it("does not stack duplicate attack logs across repeated resolutions at the same turn", () => {
     const enemy = generateEnemy(1);
     const player = makePlayer();

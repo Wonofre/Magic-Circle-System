@@ -237,7 +237,7 @@ export function CodexBook({
                   onClick={onStartTutorial}
                   className="w-full rounded-lg border border-sky-700/45 bg-sky-900/35 px-4 py-3 text-sm font-bold text-sky-100 transition hover:bg-sky-800/45"
                 >
-                  Tracar no canvas
+                  Comecar a desenhar
                 </button>
               )}
 

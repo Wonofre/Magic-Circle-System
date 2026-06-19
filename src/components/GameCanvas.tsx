@@ -10,6 +10,7 @@ import {
   closeStrokeIfNearV2,
   getStrokeClosureDistance,
 } from '@/lib/recognizerV2/canvasFeedbackV2';
+import { TUTORIAL_STEPS } from '@/components/CodexBook';
 import { GlyphCollectorPanel } from '@/components/GlyphCollectorPanel';
 import { drawingStrokesToRecognitionStrokes } from '@/lib/spell/strokeAdapter';
 
@@ -34,6 +35,14 @@ const MIN_DRAW_INK = 0.03;
 const TUTORIAL_KEY_CENTER = { x: 360, y: 260 };
 const TUTORIAL_KEY_SCOPE_RADIUS = 42;
 const TUTORIAL_SIGIL_SCOPE_RADIUS = 52;
+const TUTORIAL_STEP_MARKERS = [
+  { step: 1, x: 260, y: 78 },
+  { step: 2, x: 260, y: 260 },
+  { step: 3, x: 330, y: 220 },
+  { step: 4, x: 360, y: 260 },
+  { step: 5, x: 310, y: 260 },
+  { step: 6, x: 200, y: 160 },
+] as const;
 const getPathLength = (points: readonly Point[]): number =>
   points.reduce((total, point, index) => {
     const previous = points[index - 1];
@@ -141,24 +150,6 @@ const drawTutorialTraceGuide = (ctx: CanvasRenderingContext2D) => {
   ];
   drawTracePath(ctx, channel);
   drawCircleTrace(ctx, CENTER, IDEAL_RADIUS, 'rgba(166, 92, 25, 0.68)');
-
-  const labels = [
-    { text: '1', x: 222, y: 202 },
-    { text: '2', x: 402, y: 218 },
-    { text: '3', x: 330, y: 244 },
-    { text: '4', x: 260, y: 78 },
-  ];
-  labels.forEach(({ text, x, y }) => {
-    ctx.beginPath();
-    ctx.arc(x, y, 12, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(45, 77, 91, 0.92)';
-    ctx.fill();
-    ctx.fillStyle = '#f8e7b0';
-    ctx.font = 'bold 13px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(text, x, y + 0.5);
-  });
 };
 
 export function GameCanvas({
@@ -506,23 +497,22 @@ export function GameCanvas({
 
       if (tutorialMode) {
         drawTutorialTraceGuide(ctx);
-        const stepLabels = [
-          { text: '6', x: 260, y: 78 },
-          { text: '2', x: 402, y: 218 },
-          { text: '4', x: 330, y: 244 },
-          { text: '5', x: 290, y: 250 },
-        ];
-        stepLabels.forEach(({ text, x, y }) => {
-          const active = Number(text) === tutorialStep;
+        TUTORIAL_STEP_MARKERS.forEach(({ step, x, y }) => {
+          const active = step === tutorialStep;
           ctx.beginPath();
-          ctx.arc(x, y, active ? 14 : 11, 0, Math.PI * 2);
+          ctx.arc(x, y, active ? 15 : 11, 0, Math.PI * 2);
           ctx.fillStyle = active ? 'rgba(14, 116, 144, 0.92)' : 'rgba(45, 77, 91, 0.72)';
           ctx.fill();
+          if (active) {
+            ctx.strokeStyle = 'rgba(186, 230, 253, 0.95)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          }
           ctx.fillStyle = '#f8e7b0';
           ctx.font = active ? 'bold 14px sans-serif' : 'bold 12px sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(text, x, y + 0.5);
+          ctx.fillText(String(step), x, y + 0.5);
         });
       } else {
         ctx.beginPath();
@@ -729,7 +719,8 @@ export function GameCanvas({
       {tutorialMode && (
         <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-sky-800/35 bg-sky-950/25 px-3 py-2">
           <p className="text-[11px] leading-relaxed text-sky-900">
-            <strong>Modo tutorial:</strong> trace 1 Aqua, 2 Projetil, 3 o canal e 4 feche o circulo externo por ultimo.
+            <strong>Passo {tutorialStep}:</strong>{' '}
+            {TUTORIAL_STEPS.find((step) => step.id === tutorialStep)?.title ?? 'Siga o guia no canvas.'}
           </p>
           {onExitTutorial && (
             <button

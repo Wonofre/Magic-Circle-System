@@ -268,8 +268,9 @@ export default function App() {
   const pendingEnemyTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const preserveFailedDrawingRef = useRef(false);
   const firstFormulaTutorialShownRef = useRef(false);
+  const firstSuccessfulCastRef = useRef(false);
   const castRequestRef = useRef(0);
-  const isCombatPaused = showCodexBook || tutorialMode;
+  const isCombatPaused = showCodexBook;
   const playerRef = useRef(player);
   const enemyRef = useRef(enemy);
   const battlefieldEffectsRef = useRef(battlefieldEffects);
@@ -341,6 +342,7 @@ export default function App() {
     drawingInkSpentRef.current = 0;
     enemyTurnResolvedRef.current = null;
     preserveFailedDrawingRef.current = false;
+    firstSuccessfulCastRef.current = false;
     setDrawingInkSpent(0);
     setTimeRemaining(45);
     setCurrentPrecision(null);
@@ -575,6 +577,7 @@ export default function App() {
 
       let enemyWasDefeated = false;
       if (castResult.isSuccess) {
+        firstSuccessfulCastRef.current = true;
         const actualDamage = castResult.damage;
         const affectsCaster = castResult.effects.some((effect) => effect.area === "self");
         const shieldBypass = Math.round(actualDamage * castResult.shieldBypassRatio);
@@ -702,6 +705,7 @@ export default function App() {
         player: playerRef.current,
         battlefieldEffects: battlefieldEffectsRef.current,
         turn,
+        gracePeriodActive: round === 1 && !firstSuccessfulCastRef.current,
       });
 
       if (resolution.plan) {
@@ -731,6 +735,7 @@ export default function App() {
   }, [
     gamePhase,
     isCombatPaused,
+    round,
     turn,
     addLog,
     advanceToNextDrawingTurn,

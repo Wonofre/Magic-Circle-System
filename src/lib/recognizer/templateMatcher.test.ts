@@ -213,6 +213,7 @@ describe("template matcher regressions", () => {
     expect(source).toContain("drawTutorialTraceGuide");
     expect(source).toContain("'ELEMENT_AQUA'");
     expect(source).toContain("'FORM_PROJECTILE'");
-    expect(source).toContain("Modo tutorial:");
+    expect(source).toContain("TUTORIAL_STEP_MARKERS");
+    expect(source).toContain("Passo {tutorialStep}:");
   });
 });

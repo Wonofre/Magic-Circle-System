@@ -37,6 +37,7 @@ export interface ResolveEnemyTurnInput {
   readonly player: Entity;
   readonly battlefieldEffects: readonly BattlefieldEffect[];
   readonly turn: number;
+  readonly gracePeriodActive?: boolean;
 }
 
 const upsertBattlefieldEffect = (
@@ -52,7 +53,20 @@ export const resolveEnemyTurn = ({
   player,
   battlefieldEffects,
   turn,
+  gracePeriodActive = false,
 }: ResolveEnemyTurnInput): EnemyTurnResolution => {
+  if (gracePeriodActive) {
+    return {
+      logs: [`${enemy.name} observa em silencio — ainda aguarda sua primeira conjuracao bem-sucedida.`],
+      plan: null,
+      enemy,
+      player,
+      battlefieldEffects,
+      outcome: "skip",
+      playerHpDamage: 0,
+    };
+  }
+
   const logs: string[] = [];
   let nextEnemy = enemy;
   let nextPlayer = player;
