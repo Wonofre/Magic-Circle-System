@@ -1,11 +1,12 @@
 {
-  "name": "my-app",
+  "name": "magic-circle-system",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:pages": "node scripts/build-pages.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",

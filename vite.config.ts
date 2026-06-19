@@ -3,9 +3,11 @@ import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 import { inspectAttr } from 'kimi-plugin-inspect-react'
 
+const pagesBase = process.env.VITE_BASE_PATH?.trim();
+
 // https://vite.dev/config/
 export default defineConfig({
-  base: './',
+  base: pagesBase && pagesBase.length > 0 ? pagesBase : './',
   plugins: [inspectAttr(), react()],
   server: {
     port: 3000,
