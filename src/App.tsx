@@ -37,8 +37,10 @@ import { resolveDiegeticFailure } from '@/lib/recognizer/failureResolver';
 import { activeRuneDefinitions } from '@/data/magicOntology';
 import { magicCatalogV2 } from '@/data/magicCatalogV2';
 import { getGlyphById } from '@/data/glyphTemplates';
+import { subscribeGlyphModelRuntimeState } from '@/lib/recognizer/ml/modelRuntime';
 import { compileSpellFromStrokes } from '@/lib/spell/spellCompiler';
 import { drawingStrokesToRecognitionStrokes } from '@/lib/spell/strokeAdapter';
+import type { VisionModelStatus } from '@/types/recognition';
 
 import { riskLabels } from '@/lib/ui/runeCatalogPresentation';
 import { workshopBackground } from '@/lib/ui/themeTokens';
@@ -245,6 +247,7 @@ export default function App() {
   const [codexBookTab, setCodexBookTab] = useState<CodexBookTab>('learn');
   const [tutorialMode, setTutorialMode] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(1);
+  const [mlRuntimeStatus, setMlRuntimeStatus] = useState<VisionModelStatus>('idle');
   const [combo, setCombo] = useState(0);
   const [score, setScore] = useState(0);
   const [round, setRound] = useState(1);
@@ -295,6 +298,16 @@ export default function App() {
   useEffect(() => {
     saveCodexEntries(codexEntries);
   }, [codexEntries]);
+
+  useEffect(() => {
+    if (gamePhase === 'menu') {
+      setMlRuntimeStatus('idle');
+      return;
+    }
+    return subscribeGlyphModelRuntimeState((state) => {
+      setMlRuntimeStatus(state.status);
+    });
+  }, [gamePhase]);
 
   const resetCanvas = useCallback(() => {
     if ((window as unknown as Record<string, unknown>).__resetCanvas) {
@@ -884,6 +897,7 @@ export default function App() {
                 onInkRefund={handleInkRefund}
                 tutorialMode={tutorialMode}
                 tutorialStep={tutorialStep}
+                mlLoading={gamePhase === 'evaluating' || mlRuntimeStatus === 'loading'}
                 onExitTutorial={() => setTutorialMode(false)}
               />
             )}

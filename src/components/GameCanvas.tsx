@@ -24,6 +24,7 @@ interface GameCanvasProps {
   onInkRefund: (distance: number) => void;
   tutorialMode?: boolean;
   tutorialStep?: number;
+  mlLoading?: boolean;
   onExitTutorial?: () => void;
 }
 
@@ -162,6 +163,7 @@ export function GameCanvas({
   onInkRefund,
   tutorialMode = false,
   tutorialStep = 1,
+  mlLoading = false,
   onExitTutorial,
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -696,6 +698,17 @@ export function GameCanvas({
         onPointerCancel={endStroke}
         onPointerLeave={endStroke}
       />
+
+      {mlLoading && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-md bg-[#1a1208]/55 backdrop-blur-[1px]">
+          <div className="rounded-md border border-sky-800/35 bg-sky-950/80 px-4 py-3 text-center shadow-lg">
+            <p className="text-sm font-semibold text-sky-100">Lendo os simbolos...</p>
+            <p className="mt-1 text-[11px] text-sky-200/75">
+              O grimorio neural desperta na primeira conjuracao.
+            </p>
+          </div>
+        </div>
+      )}
 
       {feedback && (
         <div

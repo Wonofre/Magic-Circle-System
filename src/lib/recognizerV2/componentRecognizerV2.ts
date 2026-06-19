@@ -5,9 +5,6 @@ import { matchGlyphTemplates } from "@/lib/recognizer/templateMatcher";
 import { validateGlyphTopology } from "@/lib/recognizer/topologyValidator";
 import { detectScribble } from "@/lib/recognizer/scribbleDetector";
 import { normalizeStrokes } from "@/lib/recognizer/normalizeStrokes";
-import {
-  recognizeGlyphRegionsProbabilistically,
-} from "@/lib/recognizer/ml/probabilisticRecognizer";
 import { getGlyphById } from "@/data/glyphTemplates";
 import type { GlyphSemanticRole } from "@/types/glyphTemplates";
 import type {
@@ -855,6 +852,9 @@ const visionRegionRecognitions = (
     });
 };
 
+const loadProbabilisticRecognizer = () =>
+  import("@/lib/recognizer/ml/probabilisticRecognizer");
+
 export const recognizeMandalaComponentsV2Probabilistically = async (
   strokes: readonly RecognitionStroke[],
   options: {
@@ -862,6 +862,7 @@ export const recognizeMandalaComponentsV2Probabilistically = async (
     readonly frameBounds?: RecognitionBounds;
   } = {},
 ) => {
+  const { recognizeGlyphRegionsProbabilistically } = await loadProbabilisticRecognizer();
   const strokeGroups = buildStrokeGroups(
     strokes,
     options.excludedStrokeIds ?? new Set<string>(),

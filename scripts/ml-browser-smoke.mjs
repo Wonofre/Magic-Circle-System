@@ -19,6 +19,13 @@ if (!executablePath) {
   throw new Error("Chrome or Edge was not found. Set CHROME_PATH to run the browser smoke test.");
 }
 
+const mlAssetPattern = /glyph-recognizer-v1|\/ort\//;
+const requiredFragments = [
+  "/models/glyph-recognizer-v1/metadata.json",
+  "/models/glyph-recognizer-v1/model.onnx",
+  "/ort/ort-wasm-simd-threaded.wasm",
+];
+
 const server = spawn(
   process.execPath,
   [viteBin, "preview", "--host", "127.0.0.1", "--port", String(port), "--strictPort"],
@@ -55,32 +62,54 @@ try {
   const failedResponses = [];
   page.on("response", (response) => {
     const url = response.url();
-    if (url.includes("glyph-recognizer-v1") || url.includes("/ort/")) {
-      assetResponses.push({ url, status: response.status() });
+    if (mlAssetPattern.test(url)) {
+      assetResponses.push({ url, status: response.status(), phase: currentPhase });
     }
     if (response.status() >= 400) {
       failedResponses.push({ url, status: response.status() });
     }
   });
+
+  let currentPhase = "menu_idle";
   await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 120_000 });
   await page.waitForTimeout(5_000);
 
-  const requiredFragments = [
-    "/models/glyph-recognizer-v1/metadata.json",
-    "/models/glyph-recognizer-v1/model.onnx",
-    "/ort/ort-wasm-simd-threaded.wasm",
-  ];
+  const menuMlRequests = assetResponses.filter((entry) => entry.phase === "menu_idle");
+  if (menuMlRequests.length > 0) {
+    throw new Error(
+      `Menu should not eagerly load ML assets: ${JSON.stringify(menuMlRequests)}`,
+    );
+  }
+
   for (const fragment of requiredFragments) {
-    const response = assetResponses.find((entry) => entry.url.includes(fragment));
-    if (!response || response.status !== 200) {
-      throw new Error(`Missing successful ML asset response for ${fragment}.`);
+    const response = await page.request.get(`${baseUrl}${fragment}`);
+    if (!response.ok()) {
+      throw new Error(`ML asset is not deployable at ${fragment}: HTTP ${response.status()}`);
     }
   }
+
+  currentPhase = "battle_idle";
+  await page.getByRole("button", { name: /Iniciar Batalha/i }).click();
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(3_000);
+
+  const battleMlRequests = assetResponses.filter((entry) => entry.phase === "battle_idle");
+  if (battleMlRequests.length > 0) {
+    throw new Error(
+      `Battle screen should not load ML before the first cast: ${JSON.stringify(battleMlRequests)}`,
+    );
+  }
+
   if (failedResponses.length > 0) {
     throw new Error(`Browser smoke saw failed responses: ${JSON.stringify(failedResponses)}`);
   }
 
-  console.log(JSON.stringify({ ok: true, assetResponses }, null, 2));
+  console.log(JSON.stringify({
+    ok: true,
+    menuMlRequests: menuMlRequests.length,
+    battleMlRequests: battleMlRequests.length,
+    deployableAssets: requiredFragments,
+  }, null, 2));
 } finally {
   await browser?.close();
   server.kill();

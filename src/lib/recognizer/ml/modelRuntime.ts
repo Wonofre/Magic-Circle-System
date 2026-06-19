@@ -111,6 +111,22 @@ const ortJsepWasmUrl = `${baseUrl}ort/ort-wasm-simd-threaded.jsep.wasm`;
 
 let runtimeState: GlyphModelRuntimeState = { status: "idle" };
 let loadPromise: Promise<LoadedGlyphModel> | null = null;
+const runtimeListeners = new Set<(state: GlyphModelRuntimeState) => void>();
+
+const setRuntimeState = (nextState: GlyphModelRuntimeState) => {
+  runtimeState = nextState;
+  runtimeListeners.forEach((listener) => listener(runtimeState));
+};
+
+export const subscribeGlyphModelRuntimeState = (
+  listener: (state: GlyphModelRuntimeState) => void,
+): (() => void) => {
+  runtimeListeners.add(listener);
+  listener(runtimeState);
+  return () => {
+    runtimeListeners.delete(listener);
+  };
+};
 
 const isFiniteProbability = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
@@ -234,7 +250,7 @@ const createSession = async (
 };
 
 const loadModel = async (): Promise<LoadedGlyphModel> => {
-  runtimeState = { status: "loading" };
+  setRuntimeState({ status: "loading" });
   const response = await fetch(metadataUrl);
   if (!response.ok) {
     throw new Error(`Glyph model metadata returned HTTP ${response.status}.`);
@@ -244,12 +260,12 @@ const loadModel = async (): Promise<LoadedGlyphModel> => {
   if (canUseWebGpu()) {
     try {
       const loaded = await createSession(metadata, "webgpu");
-      runtimeState = {
+      setRuntimeState({
         status: "ready",
         provider: "webgpu",
         source: "onnx_webgpu",
         metadata,
-      };
+      });
       return loaded;
     } catch {
       // WASM remains the compatibility path when WebGPU initialization fails.
@@ -257,12 +273,12 @@ const loadModel = async (): Promise<LoadedGlyphModel> => {
   }
 
   const loaded = await createSession(metadata, "wasm");
-  runtimeState = {
+  setRuntimeState({
     status: "ready",
     provider: "wasm",
     source: "onnx_wasm",
     metadata,
-  };
+  });
   return loaded;
 };
 
@@ -270,7 +286,7 @@ const getModel = async (): Promise<LoadedGlyphModel> => {
   if (!loadPromise) {
     loadPromise = loadModel().catch((error: unknown) => {
       const message = error instanceof Error ? error.message : String(error);
-      runtimeState = { status: "unavailable", error: message };
+      setRuntimeState({ status: "unavailable", error: message });
       loadPromise = null;
       throw error;
     });
@@ -294,7 +310,7 @@ const softmax = (
 export const getGlyphModelRuntimeState = (): GlyphModelRuntimeState => runtimeState;
 
 export const resetGlyphModelRuntimeForTests = () => {
-  runtimeState = { status: "idle" };
+  setRuntimeState({ status: "idle" });
   loadPromise = null;
 };
 

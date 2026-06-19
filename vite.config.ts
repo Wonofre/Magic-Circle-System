@@ -15,4 +15,21 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/onnxruntime-web")) {
+            return id.includes("/webgpu") ? "onnx-webgpu" : "onnx-wasm";
+          }
+          if (
+            id.includes("/src/lib/recognizer/ml/probabilisticRecognizer")
+            || id.includes("/src/lib/recognizer/ml/modelRuntime")
+          ) {
+            return "ml-recognition";
+          }
+        },
+      },
+    },
+  },
 });
