@@ -16,7 +16,14 @@ import {
   calculateFinalCastPrecision,
   resolveSpellCardCast,
 } from '@/lib/spell/combatResolver';
-import { chooseEnemySpellPlan, type EnemySpellPlan } from '@/lib/spell/enemySpellAI';
+import { type EnemySpellPlan } from '@/lib/spell/enemySpellAI';
+import {
+  dispelStatuses,
+  mergeStatusEffects,
+  tickBattlefieldEffects,
+  tickEntityStatuses,
+} from '@/lib/spell/combatEntityUtils';
+import { resolveEnemyTurn } from '@/lib/spell/enemyTurnResolver';
 import {
   defaultGrimoireLoadout,
   getAllowedGlyphIds,
@@ -30,10 +37,7 @@ import { resolveDiegeticFailure } from '@/lib/recognizer/failureResolver';
 import { activeRuneDefinitions } from '@/data/magicOntology';
 import { magicCatalogV2 } from '@/data/magicCatalogV2';
 import { getGlyphById } from '@/data/glyphTemplates';
-import {
-  compileSpellFromStrokes,
-  compileSpellFromStrokesSync,
-} from '@/lib/spell/spellCompiler';
+import { compileSpellFromStrokes } from '@/lib/spell/spellCompiler';
 import { drawingStrokesToRecognitionStrokes } from '@/lib/spell/strokeAdapter';
 
 import { riskLabels } from '@/lib/ui/runeCatalogPresentation';
@@ -161,92 +165,8 @@ type GameplayCastResult = CastResult & {
   inkCostBreakdown?: ReturnType<typeof calculateSpellCardInkCost>;
 };
 
-const damagingStatusTypes = new Set<StatusEffect["type"]>(["burn", "poisoned", "bleeding", "frozen"]);
-const controlStatusTypes = new Set<StatusEffect["type"]>(["stun", "slow", "frozen", "rooted", "confused", "blinded"]);
-
-const mergeStatusEffects = (
-  current: readonly StatusEffect[],
-  incoming: readonly StatusEffect[],
-): StatusEffect[] => {
-  const merged = new Map<StatusEffect["type"], StatusEffect>();
-
-  [...current, ...incoming].forEach((status) => {
-    const previous = merged.get(status.type);
-    merged.set(status.type, previous
-      ? {
-          type: status.type,
-          duration: Math.max(previous.duration, status.duration),
-          potency: Math.max(previous.potency, status.potency),
-        }
-      : { ...status });
-  });
-
-  return [...merged.values()];
-};
-
-const tickEntityStatuses = (entity: Entity): Entity => {
-  let hp = entity.hp;
-  const nextStatuses: StatusEffect[] = [];
-
-  entity.status.forEach((status) => {
-    if (damagingStatusTypes.has(status.type)) {
-      hp = Math.max(0, hp - Math.max(1, Math.round(status.potency)));
-    }
-    if (status.type === "regeneration") {
-      hp = Math.min(entity.maxHp, hp + Math.max(1, Math.round(status.potency)));
-    }
-    if (status.duration > 1) {
-      nextStatuses.push({ ...status, duration: status.duration - 1 });
-    }
-  });
-
-  return { ...entity, hp, status: nextStatuses };
-};
-
-const tickBattlefieldEffects = (effects: readonly BattlefieldEffect[]): BattlefieldEffect[] =>
-  effects
-    .map((effect) => ({ ...effect, duration: effect.duration - 1 }))
-    .filter((effect) => effect.duration > 0);
-
-const dispelStatuses = (statuses: readonly StatusEffect[], power: number): StatusEffect[] => {
-  if (power <= 0) return [...statuses];
-  let remaining = power;
-  const kept: StatusEffect[] = [];
-
-  for (const status of statuses) {
-    const cost = Math.max(1, status.potency);
-    if (remaining >= cost) {
-      remaining -= cost;
-    } else {
-      kept.push(status);
-    }
-  }
-
-  return kept;
-};
-
 const statusEffectLabel = (status: StatusEffect): string =>
   `${status.type} ${status.duration}t`;
-
-const scaleStatusEffectsByFactor = (
-  statuses: readonly StatusEffect[],
-  factor: number,
-): StatusEffect[] =>
-  statuses.map((status) => ({
-    ...status,
-    potency: Math.max(1, Math.round(status.potency * factor)),
-  }));
-
-const scaleBattlefieldEffectByFactor = (
-  effect: BattlefieldEffect | undefined,
-  factor: number,
-): BattlefieldEffect | undefined =>
-  effect
-    ? {
-        ...effect,
-        potency: Math.max(1, Math.round(effect.potency * factor)),
-      }
-    : undefined;
 
 const makeFailureResult = (
   spellName: string,
@@ -343,6 +263,9 @@ export default function App() {
   const drawingInkSpentRef = useRef(0);
   const playerInkRef = useRef(player.ink);
   const enemyTurnResolvedRef = useRef<number | null>(null);
+  const castPhaseTokenRef = useRef(0);
+  const enemyTurnTokenRef = useRef(0);
+  const pendingEnemyTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const preserveFailedDrawingRef = useRef(false);
   const firstFormulaTutorialShownRef = useRef(false);
   const castRequestRef = useRef(0);
@@ -353,6 +276,19 @@ export default function App() {
 
   const addLog = useCallback((msg: string) => {
     setLogMessages(prev => [msg, ...prev].slice(0, 20));
+  }, []);
+
+  const clearPendingEnemyTimeouts = useCallback(() => {
+    pendingEnemyTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+    pendingEnemyTimeoutsRef.current = [];
+  }, []);
+
+  const scheduleEnemyTimeout = useCallback((callback: () => void, delayMs: number) => {
+    const timeoutId = setTimeout(() => {
+      pendingEnemyTimeoutsRef.current = pendingEnemyTimeoutsRef.current.filter((id) => id !== timeoutId);
+      callback();
+    }, delayMs);
+    pendingEnemyTimeoutsRef.current.push(timeoutId);
   }, []);
 
   useEffect(() => {
@@ -391,6 +327,9 @@ export default function App() {
 
   const startGame = useCallback(() => {
     castRequestRef.current += 1;
+    castPhaseTokenRef.current += 1;
+    enemyTurnTokenRef.current += 1;
+    clearPendingEnemyTimeouts();
     setGamePhase('drawing');
     setPlayer(p => ({ ...p, hp: p.maxHp, shield: 0, ink: p.maxInk }));
     setEnemy(generateEnemy(1));
@@ -422,7 +361,7 @@ export default function App() {
       setCodexBookTab('learn');
       setShowCodexBook(true);
     }
-  }, [addLog, resetCanvas]);
+  }, [addLog, resetCanvas, clearPendingEnemyTimeouts]);
 
   const evaluateCurrentGlyph = useCallback(async (
     precisionOverride: PrecisionBreakdown | null = currentPrecision,
@@ -621,11 +560,14 @@ export default function App() {
     if (gamePhase !== 'casting' || !castResult || isCombatPaused) return;
     if (appliedCastRef.current === castResult) return;
     preserveFailedDrawingRef.current = !castResult.isSuccess && currentStrokes.length > 0;
+    const castToken = ++castPhaseTokenRef.current;
 
     const timeout = setTimeout(() => {
+      if (castToken !== castPhaseTokenRef.current) return;
       if (appliedCastRef.current === castResult) return;
       appliedCastRef.current = castResult;
       const remainingInkCost = Math.max(0, castResult.inkCost - drawingInkSpentRef.current);
+      const enemySnapshot = enemyRef.current;
 
       if (remainingInkCost > 0) {
         setPlayer(p => spendInk(p, remainingInkCost));
@@ -637,9 +579,9 @@ export default function App() {
         const affectsCaster = castResult.effects.some((effect) => effect.area === "self");
         const shieldBypass = Math.round(actualDamage * castResult.shieldBypassRatio);
         const shieldableDamage = Math.max(0, actualDamage - shieldBypass);
-        const shieldAbsorb = Math.min(shieldableDamage, enemy.shield);
+        const shieldAbsorb = Math.min(shieldableDamage, enemySnapshot.shield);
         const hpDamage = shieldBypass + shieldableDamage - shieldAbsorb;
-        enemyWasDefeated = enemy.hp - hpDamage <= 0;
+        enemyWasDefeated = enemySnapshot.hp - hpDamage <= 0;
 
         setEnemy(e => {
           const afterShield = Math.max(0, e.shield - shieldAbsorb);
@@ -673,8 +615,10 @@ export default function App() {
           ].slice(0, 4));
         }
 
-        setCombo(prev => prev + 1);
-        setScore(prev => prev + actualDamage * (1 + combo * 0.1));
+        setCombo(prevCombo => {
+          setScore(scorePrev => scorePrev + actualDamage * (1 + prevCombo * 0.1));
+          return prevCombo + 1;
+        });
 
         if (castResult.spellCard) {
           setCodexEntries(entries => recordSpellCardDiscovery(entries, castResult.spellCard!));
@@ -695,20 +639,28 @@ export default function App() {
         addLog(`Sua magia falhou: ${castResult.feedback}`);
       }
 
+      const phaseAdvanceToken = castToken;
       setTimeout(() => {
+        if (phaseAdvanceToken !== castPhaseTokenRef.current) return;
         if (enemyWasDefeated) {
-          addLog(`Você derrotou ${enemy.name}!`);
+          addLog(`Você derrotou ${enemyRef.current.name}!`);
           setGamePhase('victory');
         } else {
+          enemyTurnResolvedRef.current = null;
+          enemyTurnTokenRef.current += 1;
           setGamePhase('enemy_turn');
         }
       }, PLAYER_CAST_PHASE_ADVANCE_DELAY_MS);
     }, PLAYER_CAST_RESULT_DELAY_MS);
 
     return () => clearTimeout(timeout);
-  }, [gamePhase, castResult, enemy.hp, enemy.shield, enemy.name, combo, currentStrokes.length, isCombatPaused, addLog]);
+  }, [gamePhase, castResult, currentStrokes.length, isCombatPaused, addLog]);
 
   const advanceToNextDrawingTurn = useCallback(() => {
+    castPhaseTokenRef.current += 1;
+    enemyTurnTokenRef.current += 1;
+    clearPendingEnemyTimeouts();
+    enemyTurnResolvedRef.current = null;
     setTurn(t => t + 1);
     setTimeRemaining(45);
     setGamePhase('drawing');
@@ -729,7 +681,7 @@ export default function App() {
     } else {
       resetCanvas();
     }
-  }, [resetCanvas]);
+  }, [resetCanvas, clearPendingEnemyTimeouts]);
 
   // Enemy turn
   useEffect(() => {
@@ -739,138 +691,51 @@ export default function App() {
       enemyTurnResolvedRef.current === turn
     ) return;
 
+    const enemyTurnToken = enemyTurnTokenRef.current;
     const timeout = setTimeout(() => {
+      if (enemyTurnToken !== enemyTurnTokenRef.current) return;
       if (enemyTurnResolvedRef.current === turn) return;
       enemyTurnResolvedRef.current = turn;
-      const enemySnapshot = enemyRef.current;
-      const playerSnapshot = playerRef.current;
-      const battlefieldSnapshot = battlefieldEffectsRef.current;
-      const controlPenalty = enemySnapshot.status.some((status) => controlStatusTypes.has(status.type))
-        ? 0.65
-        : 1;
-      const fieldPressure = battlefieldSnapshot.some((effect) =>
-        effect.type === "storm_charge" || effect.type === "trap_zone" || effect.type === "frozen_ground",
-      )
-        ? 0.9
-        : 1;
-      const plan = chooseEnemySpellPlan(enemySnapshot, playerSnapshot, { turn });
-      setEnemyCastPlan(plan);
-      setEnemyAction(plan.effectText);
-      addLog(`${plan.spellName}: ${plan.effectText}`);
-      const compiledEnemySpell = compileSpellFromStrokesSync(plan.strokes);
 
-      if (!compiledEnemySpell.ok) {
-        const feedback = compiledEnemySpell.failure.diegeticFailure?.playerFeedback ?? compiledEnemySpell.failure.message;
-        addLog(`${enemySnapshot.name} perdeu a formula: ${feedback}`);
-        setTimeout(advanceToNextDrawingTurn, ENEMY_RESULT_DELAY_MS);
-        return;
-      }
-
-      const enemyCard = compiledEnemySpell.card;
-      const enemyPrecision = calculateFinalCastPrecision(enemyCard);
-      const inkBreakdown = calculateSpellCardInkCost({ card: enemyCard });
-      const inkSimulation = simulateInkSpend(getInkReservoir(enemySnapshot), inkBreakdown);
-
-      if (!inkSimulation.ok) {
-        addLog(`${enemySnapshot.name} ficou sem tinta: precisa de ${inkSimulation.cost}, possui ${enemySnapshot.ink}.`);
-        setTimeout(advanceToNextDrawingTurn, ENEMY_RESULT_DELAY_MS);
-        return;
-      }
-
-      const enemyCast = resolveSpellCardCast({
-        card: enemyCard,
-        precision: enemyPrecision,
-        opponent: playerSnapshot,
-        inkCost: inkSimulation.cost,
-        inkRemaining: inkSimulation.remainingInk,
-        inkOverloadChance: inkSimulation.overloadChance,
-        inkCostBreakdown: inkBreakdown,
-      });
-      const affectsEnemyCaster = enemyCast.effects.some((effect) => effect.area === "self");
-      const hostileFactor = controlPenalty * fieldPressure;
-      const supportFactor = controlPenalty;
-      const resolvedDamage = affectsEnemyCaster ? 0 : Math.round(enemyCast.damage * hostileFactor);
-      const healing = affectsEnemyCaster ? Math.round(enemyCast.healing * supportFactor) : 0;
-      const shield = affectsEnemyCaster ? Math.round(enemyCast.shield * supportFactor) : 0;
-      const statusEffects = scaleStatusEffectsByFactor(enemyCast.statusEffects, affectsEnemyCaster ? supportFactor : hostileFactor);
-      const fieldEffect = scaleBattlefieldEffectByFactor(enemyCast.fieldEffect, hostileFactor);
-
-      if (controlPenalty < 1) addLog(`${enemySnapshot.name} teve a conjuracao enfraquecida por status.`);
-
-      if (!enemyCast.isSuccess) {
-        setEnemy(e => spendInk(e, inkSimulation.cost));
-        addLog(`${enemySnapshot.name} estabilizou ${enemyCard.name}, mas a formula nao encontrou efeito jogavel.`);
-        setTimeout(advanceToNextDrawingTurn, ENEMY_RESULT_DELAY_MS);
-        return;
-      }
-
-      if (affectsEnemyCaster) {
-        setEnemy(e => {
-          const spent = spendInk(e, inkSimulation.cost);
-          return {
-            ...spent,
-            hp: Math.min(spent.maxHp, spent.hp + healing),
-            shield: spent.shield + shield,
-            status: statusEffects.length > 0 || enemyCast.dispelPower > 0
-              ? mergeStatusEffects(dispelStatuses(spent.status, enemyCast.dispelPower), statusEffects)
-              : spent.status,
-          };
-        });
-        if (healing > 0) addLog(`${enemySnapshot.name} recuperou ${healing} de vida com ${enemyCard.name}.`);
-        if (shield > 0) addLog(`${enemySnapshot.name} ergueu ${shield} de escudo com ${enemyCard.name}.`);
-        if (statusEffects.length > 0) addLog(`${enemySnapshot.name} ganhou efeito: ${statusEffects.map(statusEffectLabel).join(', ')}.`);
-        if (fieldEffect) {
-          setBattlefieldEffects(effects => [
-            fieldEffect,
-            ...effects.filter((effect) => effect.id !== fieldEffect.id),
-          ].slice(0, 4));
-          addLog(`Campo ${fieldEffect.type} estabilizado por ${fieldEffect.duration} turnos.`);
-        }
-        setTimeout(advanceToNextDrawingTurn, ENEMY_RESULT_DELAY_MS);
-        return;
-      }
-
-      setEnemy(e => spendInk(e, inkSimulation.cost));
-
-      if (fieldEffect) {
-        setBattlefieldEffects(effects => [
-          fieldEffect,
-          ...effects.filter((effect) => effect.id !== fieldEffect.id),
-        ].slice(0, 4));
-        addLog(`Campo ${fieldEffect.type} estabilizado por ${fieldEffect.duration} turnos.`);
-      }
-      if (statusEffects.length > 0) {
-        addLog(`Voce recebeu efeito: ${statusEffects.map(statusEffectLabel).join(', ')}.`);
-      }
-
-      const shieldBypass = Math.round(resolvedDamage * enemyCast.shieldBypassRatio);
-      const shieldableDamage = Math.max(0, resolvedDamage - shieldBypass);
-      const shieldAbsorb = Math.min(shieldableDamage, playerSnapshot.shield);
-      const hpDamage = shieldBypass + shieldableDamage - shieldAbsorb;
-      const newHp = Math.max(0, playerSnapshot.hp - hpDamage);
-
-      setPlayer({
-        ...playerSnapshot,
-        hp: newHp,
-        shield: Math.max(0, playerSnapshot.shield - shieldAbsorb),
-        status: mergeStatusEffects(dispelStatuses(playerSnapshot.status, enemyCast.dispelPower), statusEffects),
+      const resolution = resolveEnemyTurn({
+        enemy: enemyRef.current,
+        player: playerRef.current,
+        battlefieldEffects: battlefieldEffectsRef.current,
+        turn,
       });
 
-      if (playerSnapshot.shield > 0) addLog(`Seu escudo absorveu ${shieldAbsorb} de dano!`);
-      if (newHp <= 0) {
-        setTimeout(() => {
+      if (resolution.plan) {
+        setEnemyCastPlan(resolution.plan);
+        setEnemyAction(resolution.plan.effectText);
+      }
+      resolution.logs.forEach((message) => addLog(message));
+      setEnemy(resolution.enemy);
+      setPlayer(resolution.player);
+      setBattlefieldEffects([...resolution.battlefieldEffects]);
+
+      if (resolution.outcome === 'defeat') {
+        scheduleEnemyTimeout(() => {
+          if (enemyTurnToken !== enemyTurnTokenRef.current) return;
           setGamePhase('defeat');
-          addLog('Voce foi derrotada...');
         }, DEFEAT_RESULT_DELAY_MS);
-      } else {
-        addLog(`${enemySnapshot.name} lancou ${enemyCard.name} e causou ${hpDamage} de dano!`);
-        setTimeout(advanceToNextDrawingTurn, ENEMY_RESULT_DELAY_MS);
+        return;
       }
-      return;
+
+      scheduleEnemyTimeout(() => {
+        if (enemyTurnToken !== enemyTurnTokenRef.current) return;
+        advanceToNextDrawingTurn();
+      }, ENEMY_RESULT_DELAY_MS);
     }, ENEMY_CAST_START_DELAY_MS);
 
     return () => clearTimeout(timeout);
-  }, [gamePhase, isCombatPaused, turn, addLog, advanceToNextDrawingTurn]);
+  }, [
+    gamePhase,
+    isCombatPaused,
+    turn,
+    addLog,
+    advanceToNextDrawingTurn,
+    scheduleEnemyTimeout,
+  ]);
 
   const nextRound = useCallback(() => {
     const newRound = round + 1;
